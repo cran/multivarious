@@ -1,0 +1,696 @@
+<!DOCTYPE html>
+
+<html>
+
+<head>
+
+<meta charset="utf-8" />
+<meta name="generator" content="pandoc" />
+<meta http-equiv="X-UA-Compatible" content="IE=EDGE" />
+
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+
+
+
+<title>Linear Re-representation with regress()</title>
+
+<script>// Pandoc 2.9 adds attributes on both header and div. We remove the former (to
+// be compatible with the behavior of Pandoc < 2.8).
+document.addEventListener('DOMContentLoaded', function(e) {
+  var hs = document.querySelectorAll("div.section[class*='level'] > :first-child");
+  var i, h, a;
+  for (i = 0; i < hs.length; i++) {
+    h = hs[i];
+    if (!/^h[1-6]$/i.test(h.tagName)) continue;  // it should be a header h1-h6
+    a = h.attributes;
+    while (a.length > 0) h.removeAttribute(a[0].name);
+  }
+});
+</script>
+
+<style type="text/css">
+code{white-space: pre-wrap;}
+span.smallcaps{font-variant: small-caps;}
+span.underline{text-decoration: underline;}
+div.column{display: inline-block; vertical-align: top; width: 50%;}
+div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+ul.task-list{list-style: none;}
+</style>
+
+
+
+<style type="text/css">
+code {
+white-space: pre;
+}
+.sourceCode {
+overflow: visible;
+}
+</style>
+<style type="text/css" data-origin="pandoc">
+html { -webkit-text-size-adjust: 100%; }
+pre > code.sourceCode { white-space: pre; position: relative; }
+pre > code.sourceCode > span { display: inline-block; line-height: 1.25; }
+pre > code.sourceCode > span:empty { height: 1.2em; }
+.sourceCode { overflow: visible; }
+code.sourceCode > span { color: inherit; text-decoration: inherit; }
+div.sourceCode { margin: 1em 0; }
+pre.sourceCode { margin: 0; }
+@media screen {
+div.sourceCode { overflow: auto; }
+}
+@media print {
+pre > code.sourceCode { white-space: pre-wrap; }
+pre > code.sourceCode > span { text-indent: -5em; padding-left: 5em; }
+}
+pre.numberSource code
+{ counter-reset: source-line 0; }
+pre.numberSource code > span
+{ position: relative; left: -4em; counter-increment: source-line; }
+pre.numberSource code > span > a:first-child::before
+{ content: counter(source-line);
+position: relative; left: -1em; text-align: right; vertical-align: baseline;
+border: none; display: inline-block;
+-webkit-touch-callout: none; -webkit-user-select: none;
+-khtml-user-select: none; -moz-user-select: none;
+-ms-user-select: none; user-select: none;
+padding: 0 4px; width: 4em;
+color: #aaaaaa;
+}
+pre.numberSource { margin-left: 3em; border-left: 1px solid #aaaaaa; padding-left: 4px; }
+div.sourceCode
+{ }
+@media screen {
+pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
+}
+code span.al { color: #ff0000; font-weight: bold; } 
+code span.an { color: #60a0b0; font-weight: bold; font-style: italic; } 
+code span.at { color: #7d9029; } 
+code span.bn { color: #40a070; } 
+code span.bu { color: #008000; } 
+code span.cf { color: #007020; font-weight: bold; } 
+code span.ch { color: #4070a0; } 
+code span.cn { color: #880000; } 
+code span.co { color: #60a0b0; font-style: italic; } 
+code span.cv { color: #60a0b0; font-weight: bold; font-style: italic; } 
+code span.do { color: #ba2121; font-style: italic; } 
+code span.dt { color: #902000; } 
+code span.dv { color: #40a070; } 
+code span.er { color: #ff0000; font-weight: bold; } 
+code span.ex { } 
+code span.fl { color: #40a070; } 
+code span.fu { color: #06287e; } 
+code span.im { color: #008000; font-weight: bold; } 
+code span.in { color: #60a0b0; font-weight: bold; font-style: italic; } 
+code span.kw { color: #007020; font-weight: bold; } 
+code span.op { color: #666666; } 
+code span.ot { color: #007020; } 
+code span.pp { color: #bc7a00; } 
+code span.sc { color: #4070a0; } 
+code span.ss { color: #bb6688; } 
+code span.st { color: #4070a0; } 
+code span.va { color: #19177c; } 
+code span.vs { color: #4070a0; } 
+code span.wa { color: #60a0b0; font-weight: bold; font-style: italic; } 
+</style>
+<script>
+// apply pandoc div.sourceCode style to pre.sourceCode instead
+(function() {
+  var sheets = document.styleSheets;
+  for (var i = 0; i < sheets.length; i++) {
+    if (sheets[i].ownerNode.dataset["origin"] !== "pandoc") continue;
+    try { var rules = sheets[i].cssRules; } catch (e) { continue; }
+    var j = 0;
+    while (j < rules.length) {
+      var rule = rules[j];
+      // check if there is a div.sourceCode rule
+      if (rule.type !== rule.STYLE_RULE || rule.selectorText !== "div.sourceCode") {
+        j++;
+        continue;
+      }
+      var style = rule.style.cssText;
+      // check if color or background-color is set
+      if (rule.style.color === '' && rule.style.backgroundColor === '') {
+        j++;
+        continue;
+      }
+      // replace div.sourceCode by a pre.sourceCode rule
+      sheets[i].deleteRule(j);
+      sheets[i].insertRule('pre.sourceCode{' + style + '}', j);
+    }
+  }
+})();
+</script>
+
+
+
+
+<style type="text/css">body {
+background-color: #fff;
+margin: 1em auto;
+max-width: 700px;
+overflow: visible;
+padding-left: 2em;
+padding-right: 2em;
+font-family: "Open Sans", "Helvetica Neue", Helvetica, Arial, sans-serif;
+font-size: 14px;
+line-height: 1.35;
+}
+#TOC {
+clear: both;
+margin: 0 0 10px 10px;
+padding: 4px;
+width: 400px;
+border: 1px solid #CCCCCC;
+border-radius: 5px;
+background-color: #f6f6f6;
+font-size: 13px;
+line-height: 1.3;
+}
+#TOC .toctitle {
+font-weight: bold;
+font-size: 15px;
+margin-left: 5px;
+}
+#TOC ul {
+padding-left: 40px;
+margin-left: -1.5em;
+margin-top: 5px;
+margin-bottom: 5px;
+}
+#TOC ul ul {
+margin-left: -2em;
+}
+#TOC li {
+line-height: 16px;
+}
+table {
+margin: 1em auto;
+border-width: 1px;
+border-color: #DDDDDD;
+border-style: outset;
+border-collapse: collapse;
+}
+table th {
+border-width: 2px;
+padding: 5px;
+border-style: inset;
+}
+table td {
+border-width: 1px;
+border-style: inset;
+line-height: 18px;
+padding: 5px 5px;
+}
+table, table th, table td {
+border-left-style: none;
+border-right-style: none;
+}
+table thead, table tr.even {
+background-color: #f7f7f7;
+}
+p {
+margin: 0.5em 0;
+}
+blockquote {
+background-color: #f6f6f6;
+padding: 0.25em 0.75em;
+}
+hr {
+border-style: solid;
+border: none;
+border-top: 1px solid #777;
+margin: 28px 0;
+}
+dl {
+margin-left: 0;
+}
+dl dd {
+margin-bottom: 13px;
+margin-left: 13px;
+}
+dl dt {
+font-weight: bold;
+}
+ul {
+margin-top: 0;
+}
+ul li {
+list-style: circle outside;
+}
+ul ul {
+margin-bottom: 0;
+}
+pre, code {
+background-color: #f7f7f7;
+border-radius: 3px;
+color: #333;
+white-space: pre-wrap; 
+}
+pre {
+border-radius: 3px;
+margin: 5px 0px 10px 0px;
+padding: 10px;
+}
+pre:not([class]) {
+background-color: #f7f7f7;
+}
+code {
+font-family: Consolas, Monaco, 'Courier New', monospace;
+font-size: 85%;
+}
+p > code, li > code {
+padding: 2px 0px;
+}
+div.figure {
+text-align: center;
+}
+img {
+background-color: #FFFFFF;
+padding: 2px;
+border: 1px solid #DDDDDD;
+border-radius: 3px;
+border: 1px solid #CCCCCC;
+margin: 0 5px;
+}
+h1 {
+margin-top: 0;
+font-size: 35px;
+line-height: 40px;
+}
+h2 {
+border-bottom: 4px solid #f7f7f7;
+padding-top: 10px;
+padding-bottom: 2px;
+font-size: 145%;
+}
+h3 {
+border-bottom: 2px solid #f7f7f7;
+padding-top: 10px;
+font-size: 120%;
+}
+h4 {
+border-bottom: 1px solid #f7f7f7;
+margin-left: 8px;
+font-size: 105%;
+}
+h5, h6 {
+border-bottom: 1px solid #ccc;
+font-size: 105%;
+}
+a {
+color: #0033dd;
+text-decoration: none;
+}
+a:hover {
+color: #6666ff; }
+a:visited {
+color: #800080; }
+a:visited:hover {
+color: #BB00BB; }
+a[href^="http:"] {
+text-decoration: underline; }
+a[href^="https:"] {
+text-decoration: underline; }
+
+code > span.kw { color: #555; font-weight: bold; } 
+code > span.dt { color: #902000; } 
+code > span.dv { color: #40a070; } 
+code > span.bn { color: #d14; } 
+code > span.fl { color: #d14; } 
+code > span.ch { color: #d14; } 
+code > span.st { color: #d14; } 
+code > span.co { color: #888888; font-style: italic; } 
+code > span.ot { color: #007020; } 
+code > span.al { color: #ff0000; font-weight: bold; } 
+code > span.fu { color: #900; font-weight: bold; } 
+code > span.er { color: #a61717; background-color: #e3d2d2; } 
+</style>
+
+
+
+
+</head>
+
+<body>
+
+
+
+
+<h1 class="title toc-ignore">Linear Re-representation with
+regress()</h1>
+
+
+
+<p>When you already have a known set of basis functions—such as Fourier
+components, wavelets, splines, or principal components from a reference
+dataset—the goal isn’t to discover a latent space, but rather to express
+new data in terms of that existing basis. The <code>regress()</code>
+function facilitates this by wrapping several multi-output linear models
+within the <code>bi_projector</code> API.</p>
+<p>This integration means you automatically inherit standard
+<code>bi_projector</code> methods for tasks like:</p>
+<ul>
+<li><code>project()</code>: Map new data from the original space into
+the basis coefficients.</li>
+<li><code>inverse_projection()</code>: Map basis coefficients back to
+the original data space.</li>
+<li><code>reconstruct()</code> / <code>reconstruct_new()</code>:
+Reconstruct data using all or a subset of basis components.</li>
+<li><code>coef()</code>: Retrieve the basis coefficients.</li>
+<li><code>truncate()</code>: Keep only a subset of basis
+components.</li>
+<li>Plus caching, variable tracking helpers, etc.</li>
+</ul>
+<p>This vignette demonstrates a typical workflow using an orthonormal
+Fourier basis, but the <code>regress()</code> function works equally
+well with arbitrary, potentially non-orthogonal, basis dictionaries.</p>
+<hr />
+<div id="build-a-design-matrix-of-basis-functions" class="section level1">
+<h1>1. Build a design matrix of basis functions</h1>
+<p>First, let’s define our basis. We’ll use sines and cosines.</p>
+<div class="sourceCode" id="cb1"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb1-1"><a href="#cb1-1" tabindex="-1"></a><span class="fu">set.seed</span>(<span class="dv">42</span>)</span>
+<span id="cb1-2"><a href="#cb1-2" tabindex="-1"></a>n  <span class="ot">&lt;-</span> <span class="dv">128</span>                       <span class="co"># Number of observations (e.g., signals)</span></span>
+<span id="cb1-3"><a href="#cb1-3" tabindex="-1"></a>p  <span class="ot">&lt;-</span> <span class="dv">32</span>                        <span class="co"># Original variables per observation (e.g., time points)</span></span>
+<span id="cb1-4"><a href="#cb1-4" tabindex="-1"></a>k  <span class="ot">&lt;-</span> <span class="dv">20</span>                        <span class="co"># Number of basis functions (&lt;= p often, &lt;= n for lm)</span></span>
+<span id="cb1-5"><a href="#cb1-5" tabindex="-1"></a></span>
+<span id="cb1-6"><a href="#cb1-6" tabindex="-1"></a><span class="do">## Create toy data: smooth signals + noise</span></span>
+<span id="cb1-7"><a href="#cb1-7" tabindex="-1"></a>t   <span class="ot">&lt;-</span> <span class="fu">seq</span>(<span class="dv">0</span>, <span class="dv">1</span>, <span class="at">length.out =</span> p)</span>
+<span id="cb1-8"><a href="#cb1-8" tabindex="-1"></a>Y   <span class="ot">&lt;-</span> <span class="fu">replicate</span>(n,  <span class="dv">3</span><span class="sc">*</span><span class="fu">sin</span>(<span class="dv">2</span><span class="sc">*</span>pi<span class="sc">*</span><span class="dv">3</span><span class="sc">*</span>t) <span class="sc">+</span> <span class="dv">2</span><span class="sc">*</span><span class="fu">cos</span>(<span class="dv">2</span><span class="sc">*</span>pi<span class="sc">*</span><span class="dv">5</span><span class="sc">*</span>t) ) <span class="sc">+</span> </span>
+<span id="cb1-9"><a href="#cb1-9" tabindex="-1"></a>       <span class="fu">matrix</span>(<span class="fu">rnorm</span>(n<span class="sc">*</span>p, <span class="at">sd =</span> <span class="fl">0.3</span>), p, n) <span class="co"># Note: Y is p x n here</span></span>
+<span id="cb1-10"><a href="#cb1-10" tabindex="-1"></a></span>
+<span id="cb1-11"><a href="#cb1-11" tabindex="-1"></a><span class="do">## Orthonormal Fourier basis (columns = basis functions)</span></span>
+<span id="cb1-12"><a href="#cb1-12" tabindex="-1"></a><span class="co"># We create k/2 sine and k/2 cosine terms, plus an intercept</span></span>
+<span id="cb1-13"><a href="#cb1-13" tabindex="-1"></a>freqs <span class="ot">&lt;-</span> <span class="dv">1</span><span class="sc">:</span>(k <span class="sc">%/%</span> <span class="dv">2</span>) <span class="co"># Integer division for number of frequencies</span></span>
+<span id="cb1-14"><a href="#cb1-14" tabindex="-1"></a>B <span class="ot">&lt;-</span> <span class="fu">cbind</span>(<span class="fu">rep</span>(<span class="dv">1</span>, p), <span class="co"># Intercept column</span></span>
+<span id="cb1-15"><a href="#cb1-15" tabindex="-1"></a>           <span class="fu">do.call</span>(cbind, <span class="fu">lapply</span>(freqs, <span class="cf">function</span>(f) <span class="fu">sin</span>(<span class="dv">2</span><span class="sc">*</span>pi<span class="sc">*</span>f<span class="sc">*</span>t))),</span>
+<span id="cb1-16"><a href="#cb1-16" tabindex="-1"></a>           <span class="fu">do.call</span>(cbind, <span class="fu">lapply</span>(freqs, <span class="cf">function</span>(f) <span class="fu">cos</span>(<span class="dv">2</span><span class="sc">*</span>pi<span class="sc">*</span>f<span class="sc">*</span>t))))</span>
+<span id="cb1-17"><a href="#cb1-17" tabindex="-1"></a><span class="fu">colnames</span>(B) <span class="ot">&lt;-</span> <span class="fu">c</span>(<span class="st">&quot;Intercept&quot;</span>, <span class="fu">paste0</span>(<span class="st">&quot;sin&quot;</span>, freqs), <span class="fu">paste0</span>(<span class="st">&quot;cos&quot;</span>, freqs))</span>
+<span id="cb1-18"><a href="#cb1-18" tabindex="-1"></a></span>
+<span id="cb1-19"><a href="#cb1-19" tabindex="-1"></a><span class="co"># Make columns orthonormal (length 1, orthogonal to each other)</span></span>
+<span id="cb1-20"><a href="#cb1-20" tabindex="-1"></a>B <span class="ot">&lt;-</span> <span class="fu">scale</span>(B, <span class="at">center =</span> <span class="cn">FALSE</span>, <span class="at">scale =</span> <span class="fu">sqrt</span>(<span class="fu">colSums</span>(B<span class="sc">^</span><span class="dv">2</span>))) </span>
+<span id="cb1-21"><a href="#cb1-21" tabindex="-1"></a></span>
+<span id="cb1-22"><a href="#cb1-22" tabindex="-1"></a><span class="fu">cat</span>(<span class="fu">paste</span>(<span class="st">&quot;Dimensions: Y is&quot;</span>, <span class="fu">nrow</span>(Y), <span class="st">&quot;x&quot;</span>, <span class="fu">ncol</span>(Y), </span>
+<span id="cb1-23"><a href="#cb1-23" tabindex="-1"></a>          <span class="st">&quot;, Basis B is&quot;</span>, <span class="fu">nrow</span>(B), <span class="st">&quot;x&quot;</span>, <span class="fu">ncol</span>(B), <span class="st">&quot;</span><span class="sc">\n</span><span class="st">&quot;</span>))</span>
+<span id="cb1-24"><a href="#cb1-24" tabindex="-1"></a><span class="co">#&gt; Dimensions: Y is 32 x 128 , Basis B is 32 x 21</span></span>
+<span id="cb1-25"><a href="#cb1-25" tabindex="-1"></a><span class="co"># We want coefficients C (k x n) such that Y ≈ B %*% C.</span></span></code></pre></div>
+<hr />
+</div>
+<div id="fit-multi-output-regression" class="section level1">
+<h1>2. Fit multi-output regression</h1>
+<p>Now, we use <code>regress()</code> to find the coefficients <span class="math inline">\(C\)</span> that best represent each signal in
+<span class="math inline">\(Y\)</span> using the basis <span class="math inline">\(B\)</span>.</p>
+<div class="sourceCode" id="cb2"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb2-1"><a href="#cb2-1" tabindex="-1"></a><span class="fu">library</span>(multivarious)</span>
+<span id="cb2-2"><a href="#cb2-2" tabindex="-1"></a></span>
+<span id="cb2-3"><a href="#cb2-3" tabindex="-1"></a><span class="co"># Fit using standard linear models (lm)</span></span>
+<span id="cb2-4"><a href="#cb2-4" tabindex="-1"></a><span class="co"># Y is p x n (32 x 128): 32 time points x 128 signals</span></span>
+<span id="cb2-5"><a href="#cb2-5" tabindex="-1"></a><span class="co"># B is p x k (32 x 21): 32 time points x 21 basis functions</span></span>
+<span id="cb2-6"><a href="#cb2-6" tabindex="-1"></a><span class="co"># regress will fit 128 separate regressions, each with 32 observations and 21 predictors</span></span>
+<span id="cb2-7"><a href="#cb2-7" tabindex="-1"></a>fit <span class="ot">&lt;-</span> <span class="fu">regress</span>(<span class="at">X =</span> B,          <span class="co"># Predictors = basis functions (p x k)</span></span>
+<span id="cb2-8"><a href="#cb2-8" tabindex="-1"></a>               <span class="at">Y =</span> Y,          <span class="co"># Response = signals (p x n)</span></span>
+<span id="cb2-9"><a href="#cb2-9" tabindex="-1"></a>               <span class="at">method    =</span> <span class="st">&quot;lm&quot;</span>,</span>
+<span id="cb2-10"><a href="#cb2-10" tabindex="-1"></a>               <span class="at">intercept =</span> <span class="cn">FALSE</span>) <span class="co"># Basis B already includes an intercept column</span></span>
+<span id="cb2-11"><a href="#cb2-11" tabindex="-1"></a></span>
+<span id="cb2-12"><a href="#cb2-12" tabindex="-1"></a><span class="co"># The result is a bi_projector object</span></span>
+<span id="cb2-13"><a href="#cb2-13" tabindex="-1"></a><span class="fu">print</span>(fit)</span>
+<span id="cb2-14"><a href="#cb2-14" tabindex="-1"></a><span class="co">#&gt; Regression bi_projector object:</span></span>
+<span id="cb2-15"><a href="#cb2-15" tabindex="-1"></a><span class="co">#&gt;   Method: lm</span></span>
+<span id="cb2-16"><a href="#cb2-16" tabindex="-1"></a><span class="co">#&gt;   Input dimension: 128</span></span>
+<span id="cb2-17"><a href="#cb2-17" tabindex="-1"></a><span class="co">#&gt;   Output dimension: 21</span></span>
+<span id="cb2-18"><a href="#cb2-18" tabindex="-1"></a><span class="co">#&gt;   Coefficients dimension:  128 x 21</span></span>
+<span id="cb2-19"><a href="#cb2-19" tabindex="-1"></a></span>
+<span id="cb2-20"><a href="#cb2-20" tabindex="-1"></a><span class="do">## Conceptual mapping to bi_projector slots:</span></span>
+<span id="cb2-21"><a href="#cb2-21" tabindex="-1"></a><span class="co"># fit$v : Coefficients (n x k) - Basis coefficients for each signal.</span></span>
+<span id="cb2-22"><a href="#cb2-22" tabindex="-1"></a><span class="co"># fit$s : Design Matrix (p x k) - The basis matrix B.</span></span>
+<span id="cb2-23"><a href="#cb2-23" tabindex="-1"></a><span class="co">#         Stored for reconstruction.</span></span></code></pre></div>
+<p>The <code>bi_projector</code> structure provides a consistent way to
+access the core components: the basis (<code>fit$s</code>) and the
+coefficients (<code>fit$v</code>).</p>
+<hr />
+</div>
+<div id="go-back-and-forth-between-spaces" class="section level1">
+<h1>3. Go back and forth between spaces</h1>
+<p>With the fitted <code>bi_projector</code>, we can move freely between
+the original data space and the basis coefficient space. This section
+demonstrates the key operations.</p>
+<div id="inspecting-the-fitted-coefficients" class="section level2">
+<h2>3.1 Inspecting the fitted coefficients</h2>
+<p>The coefficient matrix <code>fit$v</code> has dimensions <span class="math inline">\(n \times k\)</span> (signals <span class="math inline">\(\times\)</span> basis functions). Each row
+contains the weights that express one signal as a linear combination of
+basis functions.</p>
+<div class="sourceCode" id="cb3"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb3-1"><a href="#cb3-1" tabindex="-1"></a>coef_matrix_first3 <span class="ot">&lt;-</span> fit<span class="sc">$</span>v[<span class="dv">1</span><span class="sc">:</span><span class="dv">3</span>, ]</span>
+<span id="cb3-2"><a href="#cb3-2" tabindex="-1"></a><span class="fu">cat</span>(<span class="st">&quot;Coefficient matrix shape (first 3 signals):&quot;</span>,</span>
+<span id="cb3-3"><a href="#cb3-3" tabindex="-1"></a>    <span class="fu">nrow</span>(coef_matrix_first3), <span class="st">&quot;x&quot;</span>, <span class="fu">ncol</span>(coef_matrix_first3), <span class="st">&quot;</span><span class="sc">\n\n</span><span class="st">&quot;</span>)</span>
+<span id="cb3-4"><a href="#cb3-4" tabindex="-1"></a><span class="co">#&gt; Coefficient matrix shape (first 3 signals): 3 x 21</span></span>
+<span id="cb3-5"><a href="#cb3-5" tabindex="-1"></a></span>
+<span id="cb3-6"><a href="#cb3-6" tabindex="-1"></a><span class="fu">cat</span>(<span class="st">&quot;Coefficients for signal 1:</span><span class="sc">\n</span><span class="st">&quot;</span>)</span>
+<span id="cb3-7"><a href="#cb3-7" tabindex="-1"></a><span class="co">#&gt; Coefficients for signal 1:</span></span>
+<span id="cb3-8"><a href="#cb3-8" tabindex="-1"></a><span class="fu">print</span>(coef_matrix_first3[<span class="dv">1</span>, ])</span>
+<span id="cb3-9"><a href="#cb3-9" tabindex="-1"></a><span class="co">#&gt;    Intercept         sin1         sin2         sin3         sin4         sin5 </span></span>
+<span id="cb3-10"><a href="#cb3-10" tabindex="-1"></a><span class="co">#&gt;  0.135054901  0.587137215 -0.183816033 12.150464524 -0.007984793 -0.162281276 </span></span>
+<span id="cb3-11"><a href="#cb3-11" tabindex="-1"></a><span class="co">#&gt;         sin6         sin7         sin8         sin9        sin10         cos1 </span></span>
+<span id="cb3-12"><a href="#cb3-12" tabindex="-1"></a><span class="co">#&gt; -0.593723657  0.581637564 -0.370023776 -0.108499186  0.173654284  0.394261726 </span></span>
+<span id="cb3-13"><a href="#cb3-13" tabindex="-1"></a><span class="co">#&gt;         cos2         cos3         cos4         cos5         cos6         cos7 </span></span>
+<span id="cb3-14"><a href="#cb3-14" tabindex="-1"></a><span class="co">#&gt; -0.590122835  0.288835048  0.448031764  8.196393043  0.080690010 -0.612238653 </span></span>
+<span id="cb3-15"><a href="#cb3-15" tabindex="-1"></a><span class="co">#&gt;         cos8         cos9        cos10 </span></span>
+<span id="cb3-16"><a href="#cb3-16" tabindex="-1"></a><span class="co">#&gt;  0.678547189 -0.030446715  0.088104811</span></span></code></pre></div>
+<p>Notice that <code>sin3</code> and <code>cos5</code> have the largest
+coefficients—this matches our generating function <span class="math inline">\(3\sin(2\pi \cdot 3t) + 2\cos(2\pi \cdot
+5t)\)</span>.</p>
+</div>
+<div id="reconstructing-the-fitted-data" class="section level2">
+<h2>3.2 Reconstructing the fitted data</h2>
+<p>Reconstruction recovers the original data from the basis
+representation. The <code>bi_projector</code> stores both the design
+matrix <span class="math inline">\(B\)</span> (in <code>fit$s</code>)
+and the coefficients (in <code>fit$v</code>). Reconstruction is simply
+their product:</p>
+<p><span class="math display">\[\hat{Y} = B \cdot C^T = \texttt{fit\$s}
+\times \texttt{t(fit\$v)}\]</span></p>
+<div class="sourceCode" id="cb4"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb4-1"><a href="#cb4-1" tabindex="-1"></a>Y_hat <span class="ot">&lt;-</span> fit<span class="sc">$</span>s <span class="sc">%*%</span> <span class="fu">t</span>(fit<span class="sc">$</span>v)</span>
+<span id="cb4-2"><a href="#cb4-2" tabindex="-1"></a>max_reconstruction_error <span class="ot">&lt;-</span> <span class="fu">max</span>(<span class="fu">abs</span>(Y_hat <span class="sc">-</span> Y))</span>
+<span id="cb4-3"><a href="#cb4-3" tabindex="-1"></a></span>
+<span id="cb4-4"><a href="#cb4-4" tabindex="-1"></a><span class="fu">cat</span>(<span class="st">&quot;Reconstruction shape:&quot;</span>, <span class="fu">nrow</span>(Y_hat), <span class="st">&quot;x&quot;</span>, <span class="fu">ncol</span>(Y_hat), <span class="st">&quot;</span><span class="sc">\n</span><span class="st">&quot;</span>)</span>
+<span id="cb4-5"><a href="#cb4-5" tabindex="-1"></a><span class="co">#&gt; Reconstruction shape: 32 x 128</span></span>
+<span id="cb4-6"><a href="#cb4-6" tabindex="-1"></a><span class="fu">cat</span>(<span class="st">&quot;Maximum reconstruction error:&quot;</span>, <span class="fu">format</span>(max_reconstruction_error, <span class="at">digits=</span><span class="dv">3</span>), <span class="st">&quot;</span><span class="sc">\n</span><span class="st">&quot;</span>)</span>
+<span id="cb4-7"><a href="#cb4-7" tabindex="-1"></a><span class="co">#&gt; Maximum reconstruction error: 0.7</span></span></code></pre></div>
+<p>The error is non-zero because our signals contain random noise that
+cannot be captured by the smooth Fourier basis. This is expected and
+acceptable.</p>
+</div>
+<div id="projecting-new-data-onto-the-basis" class="section level2">
+<h2>3.3 Projecting new data onto the basis</h2>
+<p>A key use case is expressing <em>new</em> observations in terms of
+the same basis. For an orthonormal basis <span class="math inline">\(B\)</span>, projection is straightforward:</p>
+<p><span class="math display">\[\text{coefficients} = B^T \cdot
+Y_{\text{new}}\]</span></p>
+<p>Let’s create a new signal with the same underlying pattern but
+different noise:</p>
+<div class="sourceCode" id="cb5"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb5-1"><a href="#cb5-1" tabindex="-1"></a>Y_new_signal <span class="ot">&lt;-</span> <span class="dv">3</span><span class="sc">*</span><span class="fu">sin</span>(<span class="dv">2</span><span class="sc">*</span>pi<span class="sc">*</span><span class="dv">3</span><span class="sc">*</span>t) <span class="sc">+</span> <span class="dv">2</span><span class="sc">*</span><span class="fu">cos</span>(<span class="dv">2</span><span class="sc">*</span>pi<span class="sc">*</span><span class="dv">5</span><span class="sc">*</span>t) <span class="sc">+</span> <span class="fu">rnorm</span>(p, <span class="at">sd=</span><span class="fl">0.3</span>)</span>
+<span id="cb5-2"><a href="#cb5-2" tabindex="-1"></a>Y_new_matrix <span class="ot">&lt;-</span> <span class="fu">matrix</span>(Y_new_signal, <span class="at">nrow =</span> p, <span class="at">ncol =</span> <span class="dv">1</span>)</span>
+<span id="cb5-3"><a href="#cb5-3" tabindex="-1"></a></span>
+<span id="cb5-4"><a href="#cb5-4" tabindex="-1"></a>coef_new <span class="ot">&lt;-</span> <span class="fu">t</span>(fit<span class="sc">$</span>s) <span class="sc">%*%</span> Y_new_matrix</span>
+<span id="cb5-5"><a href="#cb5-5" tabindex="-1"></a></span>
+<span id="cb5-6"><a href="#cb5-6" tabindex="-1"></a><span class="fu">cat</span>(<span class="st">&quot;Basis coefficients for new signal:</span><span class="sc">\n</span><span class="st">&quot;</span>)</span>
+<span id="cb5-7"><a href="#cb5-7" tabindex="-1"></a><span class="co">#&gt; Basis coefficients for new signal:</span></span>
+<span id="cb5-8"><a href="#cb5-8" tabindex="-1"></a><span class="fu">print</span>(coef_new[, <span class="dv">1</span>])</span>
+<span id="cb5-9"><a href="#cb5-9" tabindex="-1"></a><span class="co">#&gt;   Intercept        sin1        sin2        sin3        sin4        sin5 </span></span>
+<span id="cb5-10"><a href="#cb5-10" tabindex="-1"></a><span class="co">#&gt; -0.16459096  0.35921181 -0.09452109 11.90760497  0.37429968 -0.13899361 </span></span>
+<span id="cb5-11"><a href="#cb5-11" tabindex="-1"></a><span class="co">#&gt;        sin6        sin7        sin8        sin9       sin10        cos1 </span></span>
+<span id="cb5-12"><a href="#cb5-12" tabindex="-1"></a><span class="co">#&gt;  0.44535459 -0.16769033  0.02891241  0.54613517 -0.41145969  0.53832581 </span></span>
+<span id="cb5-13"><a href="#cb5-13" tabindex="-1"></a><span class="co">#&gt;        cos2        cos3        cos4        cos5        cos6        cos7 </span></span>
+<span id="cb5-14"><a href="#cb5-14" tabindex="-1"></a><span class="co">#&gt;  0.45371511  0.24009459  0.81766812  8.25333978  0.75410708 -0.42128770 </span></span>
+<span id="cb5-15"><a href="#cb5-15" tabindex="-1"></a><span class="co">#&gt;        cos8        cos9       cos10 </span></span>
+<span id="cb5-16"><a href="#cb5-16" tabindex="-1"></a><span class="co">#&gt;  0.49377610  0.45618692  0.79379189</span></span></code></pre></div>
+<p>Again, the <code>sin3</code> and <code>cos5</code> components
+dominate, as expected.</p>
+</div>
+<div id="reconstructing-new-data" class="section level2">
+<h2>3.4 Reconstructing new data</h2>
+<p>Finally, we can reconstruct the new signal from its basis
+coefficients to see how well the basis captures the underlying
+structure:</p>
+<div class="sourceCode" id="cb6"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb6-1"><a href="#cb6-1" tabindex="-1"></a>Y_new_recon <span class="ot">&lt;-</span> fit<span class="sc">$</span>s <span class="sc">%*%</span> coef_new</span>
+<span id="cb6-2"><a href="#cb6-2" tabindex="-1"></a>reconstruction_error <span class="ot">&lt;-</span> <span class="fu">sqrt</span>(<span class="fu">mean</span>((Y_new_matrix <span class="sc">-</span> Y_new_recon)<span class="sc">^</span><span class="dv">2</span>))</span>
+<span id="cb6-3"><a href="#cb6-3" tabindex="-1"></a></span>
+<span id="cb6-4"><a href="#cb6-4" tabindex="-1"></a><span class="fu">cat</span>(<span class="st">&quot;Reconstruction RMSE for new signal:&quot;</span>, <span class="fu">format</span>(reconstruction_error, <span class="at">digits=</span><span class="dv">3</span>), <span class="st">&quot;</span><span class="sc">\n</span><span class="st">&quot;</span>)</span>
+<span id="cb6-5"><a href="#cb6-5" tabindex="-1"></a><span class="co">#&gt; Reconstruction RMSE for new signal: 0.362</span></span></code></pre></div>
+<p>The reconstruction error reflects the noise that the basis cannot
+represent. Because <span class="math inline">\(B\)</span> is
+orthonormal, projection and reconstruction are exact inverses for the
+signal components that lie within the basis span.</p>
+<hr />
+</div>
+</div>
+<div id="regularisation-pls" class="section level1">
+<h1>4. Regularisation &amp; PLS</h1>
+<p>If the basis is ill-conditioned or you need feature
+selection/shrinkage, simply change the <code>method</code> argument.
+<code>regress()</code> wraps common regularized models.</p>
+<div class="sourceCode" id="cb7"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb7-1"><a href="#cb7-1" tabindex="-1"></a><span class="co"># Ridge regression (requires glmnet)</span></span>
+<span id="cb7-2"><a href="#cb7-2" tabindex="-1"></a>fit_ridge <span class="ot">&lt;-</span> <span class="fu">regress</span>(<span class="at">X =</span> B, <span class="at">Y =</span> Y, <span class="at">method =</span> <span class="st">&quot;mridge&quot;</span>, <span class="at">lambda =</span> <span class="fl">0.01</span>, <span class="at">intercept =</span> <span class="cn">FALSE</span>)</span>
+<span id="cb7-3"><a href="#cb7-3" tabindex="-1"></a></span>
+<span id="cb7-4"><a href="#cb7-4" tabindex="-1"></a><span class="co"># Elastic Net (requires glmnet)</span></span>
+<span id="cb7-5"><a href="#cb7-5" tabindex="-1"></a>fit_enet  <span class="ot">&lt;-</span> <span class="fu">regress</span>(<span class="at">X =</span> B, <span class="at">Y =</span> Y, <span class="at">method =</span> <span class="st">&quot;enet&quot;</span>, <span class="at">alpha =</span> <span class="fl">0.5</span>, <span class="at">lambda =</span> <span class="fl">0.02</span>, <span class="at">intercept =</span> <span class="cn">FALSE</span>)</span>
+<span id="cb7-6"><a href="#cb7-6" tabindex="-1"></a></span>
+<span id="cb7-7"><a href="#cb7-7" tabindex="-1"></a><span class="co"># Partial Least Squares (requires pls package) - useful if k &gt; p or multicollinearity</span></span>
+<span id="cb7-8"><a href="#cb7-8" tabindex="-1"></a>fit_pls   <span class="ot">&lt;-</span> <span class="fu">regress</span>(<span class="at">X =</span> B, <span class="at">Y =</span> Y, <span class="at">method =</span> <span class="st">&quot;pls&quot;</span>, <span class="at">ncomp =</span> <span class="dv">15</span>, <span class="at">intercept =</span> <span class="cn">FALSE</span>)</span>
+<span id="cb7-9"><a href="#cb7-9" tabindex="-1"></a></span>
+<span id="cb7-10"><a href="#cb7-10" tabindex="-1"></a><span class="co"># All these return bi_projector objects, so downstream code using </span></span>
+<span id="cb7-11"><a href="#cb7-11" tabindex="-1"></a><span class="co"># project(), reconstruct(), coef() etc. remains the same.</span></span></code></pre></div>
+<hr />
+</div>
+<div id="partial-custom-mappings" class="section level1">
+<h1>5. Partial / custom mappings</h1>
+<p>The <code>bi_projector</code> interface allows for flexible
+manipulation:</p>
+<div class="sourceCode" id="cb8"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb8-1"><a href="#cb8-1" tabindex="-1"></a><span class="co"># Truncate: Keep only the first 5 basis functions (Intercept + 2 sine + 2 cosine)</span></span>
+<span id="cb8-2"><a href="#cb8-2" tabindex="-1"></a>fit5   <span class="ot">&lt;-</span> <span class="fu">truncate</span>(fit, <span class="at">ncomp =</span> <span class="dv">5</span>) </span>
+<span id="cb8-3"><a href="#cb8-3" tabindex="-1"></a><span class="fu">cat</span>(<span class="st">&quot;Dimensions after truncating to 5 components:&quot;</span>, </span>
+<span id="cb8-4"><a href="#cb8-4" tabindex="-1"></a>    <span class="st">&quot;Basis (s):&quot;</span>, <span class="fu">paste</span>(<span class="fu">dim</span>(fit5<span class="sc">$</span>s), <span class="at">collapse=</span><span class="st">&quot;x&quot;</span>), </span>
+<span id="cb8-5"><a href="#cb8-5" tabindex="-1"></a>    <span class="st">&quot;, Coefs (v):&quot;</span>, <span class="fu">paste</span>(<span class="fu">dim</span>(fit5<span class="sc">$</span>v), <span class="at">collapse=</span><span class="st">&quot;x&quot;</span>), <span class="st">&quot;</span><span class="sc">\n</span><span class="st">&quot;</span>)</span>
+<span id="cb8-6"><a href="#cb8-6" tabindex="-1"></a><span class="co">#&gt; Dimensions after truncating to 5 components: Basis (s): 32x5 , Coefs (v): 128x5</span></span>
+<span id="cb8-7"><a href="#cb8-7" tabindex="-1"></a><span class="co"># Reconstruction using only first 5 basis functions (manual)</span></span>
+<span id="cb8-8"><a href="#cb8-8" tabindex="-1"></a><span class="co"># Equivalent to: scores(fit5) %*% t(coef(fit5)) for the selected components</span></span>
+<span id="cb8-9"><a href="#cb8-9" tabindex="-1"></a>Y_hat5 <span class="ot">&lt;-</span> fit5<span class="sc">$</span>s <span class="sc">%*%</span> <span class="fu">t</span>(fit5<span class="sc">$</span>v)</span>
+<span id="cb8-10"><a href="#cb8-10" tabindex="-1"></a></span>
+<span id="cb8-11"><a href="#cb8-11" tabindex="-1"></a><span class="co"># Partial inverse projection: Map only a subset of coefficients back</span></span>
+<span id="cb8-12"><a href="#cb8-12" tabindex="-1"></a><span class="co"># e.g., reconstruct using only components 2 through 6 (skip intercept)</span></span>
+<span id="cb8-13"><a href="#cb8-13" tabindex="-1"></a><span class="co"># Note: partial_inverse_projection is not a standard bi_projector method, </span></span>
+<span id="cb8-14"><a href="#cb8-14" tabindex="-1"></a><span class="co"># this might require manual slicing of the basis matrix B (fit$s) or coefs (fit$v).</span></span>
+<span id="cb8-15"><a href="#cb8-15" tabindex="-1"></a><span class="co"># Manual reconstruction example for components 2:6</span></span>
+<span id="cb8-16"><a href="#cb8-16" tabindex="-1"></a>coef_subset <span class="ot">&lt;-</span> fit<span class="sc">$</span>v[<span class="dv">2</span><span class="sc">:</span><span class="dv">6</span>, , drop<span class="ot">=</span><span class="cn">FALSE</span>] <span class="co"># k_sub x n</span></span>
+<span id="cb8-17"><a href="#cb8-17" tabindex="-1"></a>basis_subset <span class="ot">&lt;-</span> fit<span class="sc">$</span>s[, <span class="dv">2</span><span class="sc">:</span><span class="dv">6</span>, drop<span class="ot">=</span><span class="cn">FALSE</span>] <span class="co"># p x k_sub</span></span>
+<span id="cb8-18"><a href="#cb8-18" tabindex="-1"></a>Y_lowHat <span class="ot">&lt;-</span> basis_subset <span class="sc">%*%</span> coef_subset <span class="co"># p x n reconstruction</span></span>
+<span id="cb8-19"><a href="#cb8-19" tabindex="-1"></a></span>
+<span id="cb8-20"><a href="#cb8-20" tabindex="-1"></a><span class="co"># Variable usage helpers (Conceptual - actual functions might differ)</span></span>
+<span id="cb8-21"><a href="#cb8-21" tabindex="-1"></a><span class="co"># `variables_used(fit)` could show which basis functions have non-zero coefficients (esp. for &#39;enet&#39;).</span></span>
+<span id="cb8-22"><a href="#cb8-22" tabindex="-1"></a><span class="co"># `vars_for_component(fit, k)` isn&#39;t directly applicable here as components are the basis functions themselves.</span></span></code></pre></div>
+<hr />
+</div>
+<div id="under-the-hood-matrix-view" class="section level1">
+<h1>6. Under-the-hood: Matrix View</h1>
+<p>The core idea is to represent the <span class="math inline">\(p
+\times n\)</span> data matrix <span class="math inline">\(Y\)</span> as
+a product of the <span class="math inline">\(p \times k\)</span> basis
+matrix (stored in <code>s</code>) and the <span class="math inline">\(k
+\times n\)</span> coefficient matrix (stored in <code>v</code>): <span class="math display">\[ \underbrace{Y}_{p\times n} \approx
+\underbrace{s}_{p\times k} \underbrace{v}_{k\times n} \]</span></p>
+<p><code>regress()</code> estimates <span class="math inline">\(v\)</span> (coefficients) based on the chosen
+method:</p>
+<table>
+<colgroup>
+<col width="12%" />
+<col width="32%" />
+<col width="27%" />
+<col width="27%" />
+</colgroup>
+<thead>
+<tr class="header">
+<th><code>method</code></th>
+<th>Solver Used (Conceptual)</th>
+<th>Regularisation</th>
+<th>Key Reference</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>“lm”</td>
+<td>QR decomposition (<code>lm.fit</code>)</td>
+<td>None</td>
+<td>Classical OLS</td>
+</tr>
+<tr class="even">
+<td>“mridge”</td>
+<td><code>glmnet</code> (alpha=0)</td>
+<td>Ridge (<span class="math inline">\(\lambda
+||\beta||_2^2\)</span>)</td>
+<td>Hoerl &amp; Kennard 1970</td>
+</tr>
+<tr class="odd">
+<td>“enet”</td>
+<td><code>glmnet</code></td>
+<td>Elastic Net (<span class="math inline">\(\alpha\)</span>-mix)</td>
+<td>Zou &amp; Hastie 2005</td>
+</tr>
+<tr class="even">
+<td>“pls”</td>
+<td><code>pls::plsr</code></td>
+<td>Latent PLS factors</td>
+<td>Wold 1984</td>
+</tr>
+</tbody>
+</table>
+<p>The resulting object stores: * <code>v</code>: The estimated
+coefficient matrix (<span class="math inline">\(k \times n\)</span>). *
+<code>s</code>: The basis/design matrix <span class="math inline">\(B\)</span> (<span class="math inline">\(p \times
+k\)</span>), possibly centered or scaled by the underlying solver. *
+<code>sdev</code>, <code>center</code>: Potentially stores
+scaling/centering info related to <span class="math inline">\(s\)</span>.</p>
+<p>All other <code>bi_projector</code> methods (<code>project</code>,
+<code>reconstruct</code>, <code>inverse_projection</code>) are derived
+from these core matrices.</p>
+<hr />
+</div>
+<div id="internal-checks-developer-focus" class="section level1">
+<h1>7. Internal Checks (Developer Focus)</h1>
+<p>This section contains internal consistency checks, primarily for
+package development and CI testing.</p>
+<p>The code chunk below only runs if the environment variable
+<code>_MULTIVARIOUS_DEV_COVERAGE</code> is set.</p>
+<div class="sourceCode" id="cb9"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb9-1"><a href="#cb9-1" tabindex="-1"></a><span class="co"># This chunk only runs if _MULTIVARIOUS_DEV_COVERAGE is non-empty</span></span>
+<span id="cb9-2"><a href="#cb9-2" tabindex="-1"></a><span class="fu">message</span>(<span class="st">&quot;Running internal consistency checks for regress()...&quot;</span>)</span>
+<span id="cb9-3"><a href="#cb9-3" tabindex="-1"></a><span class="co">#&gt; Running internal consistency checks for regress()...</span></span>
+<span id="cb9-4"><a href="#cb9-4" tabindex="-1"></a><span class="fu">tryCatch</span>({</span>
+<span id="cb9-5"><a href="#cb9-5" tabindex="-1"></a>  <span class="fu">stopifnot</span>(</span>
+<span id="cb9-6"><a href="#cb9-6" tabindex="-1"></a>    <span class="co"># Check reconstruction fidelity for lm</span></span>
+<span id="cb9-7"><a href="#cb9-7" tabindex="-1"></a>    <span class="fu">max</span>(<span class="fu">abs</span>(<span class="fu">reconstruct</span>(fit) <span class="sc">-</span> Y)) <span class="sc">&lt;</span> <span class="fl">1e-10</span>,</span>
+<span id="cb9-8"><a href="#cb9-8" tabindex="-1"></a>    <span class="co"># Check dimensions of inverse projection matrix (n x p)</span></span>
+<span id="cb9-9"><a href="#cb9-9" tabindex="-1"></a>    <span class="co"># inverse_projection maps coefficients (k x n) back to data (p x n)</span></span>
+<span id="cb9-10"><a href="#cb9-10" tabindex="-1"></a>    <span class="co"># The matrix itself maps k -&gt; p implicitly. Let&#39;s check coef matrix dims.</span></span>
+<span id="cb9-11"><a href="#cb9-11" tabindex="-1"></a>    <span class="fu">nrow</span>(fit<span class="sc">$</span>v) <span class="sc">==</span> <span class="fu">ncol</span>(B), <span class="co"># k rows</span></span>
+<span id="cb9-12"><a href="#cb9-12" tabindex="-1"></a>    <span class="fu">ncol</span>(fit<span class="sc">$</span>v) <span class="sc">==</span> <span class="fu">ncol</span>(Y)  <span class="co"># n columns</span></span>
+<span id="cb9-13"><a href="#cb9-13" tabindex="-1"></a>    <span class="co"># Add checks for other methods if evaluated</span></span>
+<span id="cb9-14"><a href="#cb9-14" tabindex="-1"></a>  )</span>
+<span id="cb9-15"><a href="#cb9-15" tabindex="-1"></a>  <span class="fu">message</span>(<span class="st">&quot;Regress internal checks passed.&quot;</span>)</span>
+<span id="cb9-16"><a href="#cb9-16" tabindex="-1"></a>}, <span class="at">error =</span> <span class="cf">function</span>(e) {</span>
+<span id="cb9-17"><a href="#cb9-17" tabindex="-1"></a>  <span class="fu">warning</span>(<span class="st">&quot;Regress internal checks failed: &quot;</span>, e<span class="sc">$</span>message)</span>
+<span id="cb9-18"><a href="#cb9-18" tabindex="-1"></a>})</span>
+<span id="cb9-19"><a href="#cb9-19" tabindex="-1"></a><span class="co">#&gt; Warning in value[[3L]](cond): Regress internal checks failed:</span></span>
+<span id="cb9-20"><a href="#cb9-20" tabindex="-1"></a><span class="co">#&gt; max(abs(reconstruct(fit) - Y)) &lt; 1e-10 is not TRUE</span></span></code></pre></div>
+<hr />
+</div>
+<div id="take-aways" class="section level1">
+<h1>8. Take-aways</h1>
+<ul>
+<li><code>regress()</code> provides a convenient way to fit multiple
+linear models simultaneously when expressing data <span class="math inline">\(Y\)</span> in a known basis <span class="math inline">\(B\)</span>.</li>
+<li>It returns a <code>bi_projector</code>, giving immediate access to
+projection, reconstruction, truncation, and coefficient extraction.</li>
+<li>Supports standard OLS (<code>lm</code>), Ridge
+(<code>mridge</code>), Elastic Net (<code>enet</code>), and PLS
+(<code>pls</code>) out-of-the-box.</li>
+<li>Works with any basis dictionary (orthonormal or not).</li>
+<li>Can be integrated into larger analysis pipelines using composition
+(<code>%&gt;&gt;%</code>) or cross-validation helpers.</li>
+</ul>
+<p>Happy re-representing!</p>
+</div>
+
+
+
+<!-- code folding -->
+
+
+<!-- dynamically load mathjax for compatibility with self-contained -->
+<script>
+  (function () {
+    var script = document.createElement("script");
+    script.type = "text/javascript";
+    script.src  = "https://mathjax.rstudio.com/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML";
+    document.getElementsByTagName("head")[0].appendChild(script);
+  })();
+</script>
+
+</body>
+</html>

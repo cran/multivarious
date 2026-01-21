@@ -1,0 +1,565 @@
+<!DOCTYPE html>
+
+<html>
+
+<head>
+
+<meta charset="utf-8" />
+<meta name="generator" content="pandoc" />
+<meta http-equiv="X-UA-Compatible" content="IE=EDGE" />
+
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+
+
+
+<title>Fast Matrix Approximation with the Nyström Method</title>
+
+<script>// Pandoc 2.9 adds attributes on both header and div. We remove the former (to
+// be compatible with the behavior of Pandoc < 2.8).
+document.addEventListener('DOMContentLoaded', function(e) {
+  var hs = document.querySelectorAll("div.section[class*='level'] > :first-child");
+  var i, h, a;
+  for (i = 0; i < hs.length; i++) {
+    h = hs[i];
+    if (!/^h[1-6]$/i.test(h.tagName)) continue;  // it should be a header h1-h6
+    a = h.attributes;
+    while (a.length > 0) h.removeAttribute(a[0].name);
+  }
+});
+</script>
+
+<style type="text/css">
+code{white-space: pre-wrap;}
+span.smallcaps{font-variant: small-caps;}
+span.underline{text-decoration: underline;}
+div.column{display: inline-block; vertical-align: top; width: 50%;}
+div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+ul.task-list{list-style: none;}
+</style>
+
+
+
+<style type="text/css">
+code {
+white-space: pre;
+}
+.sourceCode {
+overflow: visible;
+}
+</style>
+<style type="text/css" data-origin="pandoc">
+html { -webkit-text-size-adjust: 100%; }
+pre > code.sourceCode { white-space: pre; position: relative; }
+pre > code.sourceCode > span { display: inline-block; line-height: 1.25; }
+pre > code.sourceCode > span:empty { height: 1.2em; }
+.sourceCode { overflow: visible; }
+code.sourceCode > span { color: inherit; text-decoration: inherit; }
+div.sourceCode { margin: 1em 0; }
+pre.sourceCode { margin: 0; }
+@media screen {
+div.sourceCode { overflow: auto; }
+}
+@media print {
+pre > code.sourceCode { white-space: pre-wrap; }
+pre > code.sourceCode > span { text-indent: -5em; padding-left: 5em; }
+}
+pre.numberSource code
+{ counter-reset: source-line 0; }
+pre.numberSource code > span
+{ position: relative; left: -4em; counter-increment: source-line; }
+pre.numberSource code > span > a:first-child::before
+{ content: counter(source-line);
+position: relative; left: -1em; text-align: right; vertical-align: baseline;
+border: none; display: inline-block;
+-webkit-touch-callout: none; -webkit-user-select: none;
+-khtml-user-select: none; -moz-user-select: none;
+-ms-user-select: none; user-select: none;
+padding: 0 4px; width: 4em;
+color: #aaaaaa;
+}
+pre.numberSource { margin-left: 3em; border-left: 1px solid #aaaaaa; padding-left: 4px; }
+div.sourceCode
+{ }
+@media screen {
+pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
+}
+code span.al { color: #ff0000; font-weight: bold; } 
+code span.an { color: #60a0b0; font-weight: bold; font-style: italic; } 
+code span.at { color: #7d9029; } 
+code span.bn { color: #40a070; } 
+code span.bu { color: #008000; } 
+code span.cf { color: #007020; font-weight: bold; } 
+code span.ch { color: #4070a0; } 
+code span.cn { color: #880000; } 
+code span.co { color: #60a0b0; font-style: italic; } 
+code span.cv { color: #60a0b0; font-weight: bold; font-style: italic; } 
+code span.do { color: #ba2121; font-style: italic; } 
+code span.dt { color: #902000; } 
+code span.dv { color: #40a070; } 
+code span.er { color: #ff0000; font-weight: bold; } 
+code span.ex { } 
+code span.fl { color: #40a070; } 
+code span.fu { color: #06287e; } 
+code span.im { color: #008000; font-weight: bold; } 
+code span.in { color: #60a0b0; font-weight: bold; font-style: italic; } 
+code span.kw { color: #007020; font-weight: bold; } 
+code span.op { color: #666666; } 
+code span.ot { color: #007020; } 
+code span.pp { color: #bc7a00; } 
+code span.sc { color: #4070a0; } 
+code span.ss { color: #bb6688; } 
+code span.st { color: #4070a0; } 
+code span.va { color: #19177c; } 
+code span.vs { color: #4070a0; } 
+code span.wa { color: #60a0b0; font-weight: bold; font-style: italic; } 
+</style>
+<script>
+// apply pandoc div.sourceCode style to pre.sourceCode instead
+(function() {
+  var sheets = document.styleSheets;
+  for (var i = 0; i < sheets.length; i++) {
+    if (sheets[i].ownerNode.dataset["origin"] !== "pandoc") continue;
+    try { var rules = sheets[i].cssRules; } catch (e) { continue; }
+    var j = 0;
+    while (j < rules.length) {
+      var rule = rules[j];
+      // check if there is a div.sourceCode rule
+      if (rule.type !== rule.STYLE_RULE || rule.selectorText !== "div.sourceCode") {
+        j++;
+        continue;
+      }
+      var style = rule.style.cssText;
+      // check if color or background-color is set
+      if (rule.style.color === '' && rule.style.backgroundColor === '') {
+        j++;
+        continue;
+      }
+      // replace div.sourceCode by a pre.sourceCode rule
+      sheets[i].deleteRule(j);
+      sheets[i].insertRule('pre.sourceCode{' + style + '}', j);
+    }
+  }
+})();
+</script>
+
+
+
+
+<style type="text/css">body {
+background-color: #fff;
+margin: 1em auto;
+max-width: 700px;
+overflow: visible;
+padding-left: 2em;
+padding-right: 2em;
+font-family: "Open Sans", "Helvetica Neue", Helvetica, Arial, sans-serif;
+font-size: 14px;
+line-height: 1.35;
+}
+#TOC {
+clear: both;
+margin: 0 0 10px 10px;
+padding: 4px;
+width: 400px;
+border: 1px solid #CCCCCC;
+border-radius: 5px;
+background-color: #f6f6f6;
+font-size: 13px;
+line-height: 1.3;
+}
+#TOC .toctitle {
+font-weight: bold;
+font-size: 15px;
+margin-left: 5px;
+}
+#TOC ul {
+padding-left: 40px;
+margin-left: -1.5em;
+margin-top: 5px;
+margin-bottom: 5px;
+}
+#TOC ul ul {
+margin-left: -2em;
+}
+#TOC li {
+line-height: 16px;
+}
+table {
+margin: 1em auto;
+border-width: 1px;
+border-color: #DDDDDD;
+border-style: outset;
+border-collapse: collapse;
+}
+table th {
+border-width: 2px;
+padding: 5px;
+border-style: inset;
+}
+table td {
+border-width: 1px;
+border-style: inset;
+line-height: 18px;
+padding: 5px 5px;
+}
+table, table th, table td {
+border-left-style: none;
+border-right-style: none;
+}
+table thead, table tr.even {
+background-color: #f7f7f7;
+}
+p {
+margin: 0.5em 0;
+}
+blockquote {
+background-color: #f6f6f6;
+padding: 0.25em 0.75em;
+}
+hr {
+border-style: solid;
+border: none;
+border-top: 1px solid #777;
+margin: 28px 0;
+}
+dl {
+margin-left: 0;
+}
+dl dd {
+margin-bottom: 13px;
+margin-left: 13px;
+}
+dl dt {
+font-weight: bold;
+}
+ul {
+margin-top: 0;
+}
+ul li {
+list-style: circle outside;
+}
+ul ul {
+margin-bottom: 0;
+}
+pre, code {
+background-color: #f7f7f7;
+border-radius: 3px;
+color: #333;
+white-space: pre-wrap; 
+}
+pre {
+border-radius: 3px;
+margin: 5px 0px 10px 0px;
+padding: 10px;
+}
+pre:not([class]) {
+background-color: #f7f7f7;
+}
+code {
+font-family: Consolas, Monaco, 'Courier New', monospace;
+font-size: 85%;
+}
+p > code, li > code {
+padding: 2px 0px;
+}
+div.figure {
+text-align: center;
+}
+img {
+background-color: #FFFFFF;
+padding: 2px;
+border: 1px solid #DDDDDD;
+border-radius: 3px;
+border: 1px solid #CCCCCC;
+margin: 0 5px;
+}
+h1 {
+margin-top: 0;
+font-size: 35px;
+line-height: 40px;
+}
+h2 {
+border-bottom: 4px solid #f7f7f7;
+padding-top: 10px;
+padding-bottom: 2px;
+font-size: 145%;
+}
+h3 {
+border-bottom: 2px solid #f7f7f7;
+padding-top: 10px;
+font-size: 120%;
+}
+h4 {
+border-bottom: 1px solid #f7f7f7;
+margin-left: 8px;
+font-size: 105%;
+}
+h5, h6 {
+border-bottom: 1px solid #ccc;
+font-size: 105%;
+}
+a {
+color: #0033dd;
+text-decoration: none;
+}
+a:hover {
+color: #6666ff; }
+a:visited {
+color: #800080; }
+a:visited:hover {
+color: #BB00BB; }
+a[href^="http:"] {
+text-decoration: underline; }
+a[href^="https:"] {
+text-decoration: underline; }
+
+code > span.kw { color: #555; font-weight: bold; } 
+code > span.dt { color: #902000; } 
+code > span.dv { color: #40a070; } 
+code > span.bn { color: #d14; } 
+code > span.fl { color: #d14; } 
+code > span.ch { color: #d14; } 
+code > span.st { color: #d14; } 
+code > span.co { color: #888888; font-style: italic; } 
+code > span.ot { color: #007020; } 
+code > span.al { color: #ff0000; font-weight: bold; } 
+code > span.fu { color: #900; font-weight: bold; } 
+code > span.er { color: #a61717; background-color: #e3d2d2; } 
+</style>
+
+
+
+
+</head>
+
+<body>
+
+
+
+
+<h1 class="title toc-ignore">Fast Matrix Approximation with the Nyström
+Method</h1>
+
+
+
+<div id="the-scalability-problem" class="section level2">
+<h2>The Scalability Problem</h2>
+<p>When working with similarity or kernel matrices, the computational
+cost grows rapidly:</p>
+<ul>
+<li><strong>Memory</strong>: O(N²) to store an N × N matrix</li>
+<li><strong>Time</strong>: O(N³) for eigendecomposition</li>
+</ul>
+<p>For N = 10,000, that’s 100 million entries and billions of
+operations. For N = 100,000, it becomes intractable.</p>
+</div>
+<div id="the-nyström-approximation" class="section level2">
+<h2>The Nyström Approximation</h2>
+<p>The Nyström method provides a fast approximation by using only a
+subset of “landmark” points:</p>
+<ol style="list-style-type: decimal">
+<li>Select m &lt;&lt; N landmark points</li>
+<li>Compute the m × m matrix between landmarks</li>
+<li>Compute the N × m matrix between all points and landmarks</li>
+<li>Use these to approximate the full eigendecomposition</li>
+</ol>
+<p>This reduces complexity from O(N³) to O(Nm²) — a massive speedup when
+m is small.</p>
+</div>
+<div id="quick-start" class="section level2">
+<h2>Quick Start</h2>
+<div class="sourceCode" id="cb1"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb1-1"><a href="#cb1-1" tabindex="-1"></a><span class="fu">set.seed</span>(<span class="dv">42</span>)</span>
+<span id="cb1-2"><a href="#cb1-2" tabindex="-1"></a>N <span class="ot">&lt;-</span> <span class="dv">1000</span></span>
+<span id="cb1-3"><a href="#cb1-3" tabindex="-1"></a>p <span class="ot">&lt;-</span> <span class="dv">50</span></span>
+<span id="cb1-4"><a href="#cb1-4" tabindex="-1"></a>X <span class="ot">&lt;-</span> <span class="fu">matrix</span>(<span class="fu">rnorm</span>(N <span class="sc">*</span> p), N, p)</span>
+<span id="cb1-5"><a href="#cb1-5" tabindex="-1"></a></span>
+<span id="cb1-6"><a href="#cb1-6" tabindex="-1"></a><span class="co"># Nyström approximation with linear kernel (default)</span></span>
+<span id="cb1-7"><a href="#cb1-7" tabindex="-1"></a><span class="co"># Uses only 100 landmarks instead of all 1000 points</span></span>
+<span id="cb1-8"><a href="#cb1-8" tabindex="-1"></a>ny_fit <span class="ot">&lt;-</span> <span class="fu">nystrom_approx</span>(</span>
+<span id="cb1-9"><a href="#cb1-9" tabindex="-1"></a></span>
+<span id="cb1-10"><a href="#cb1-10" tabindex="-1"></a>  X,</span>
+<span id="cb1-11"><a href="#cb1-11" tabindex="-1"></a>  <span class="at">ncomp =</span> <span class="dv">10</span>,</span>
+<span id="cb1-12"><a href="#cb1-12" tabindex="-1"></a>  <span class="at">nlandmarks =</span> <span class="dv">100</span>,</span>
+<span id="cb1-13"><a href="#cb1-13" tabindex="-1"></a>  <span class="at">preproc =</span> <span class="fu">center</span>()</span>
+<span id="cb1-14"><a href="#cb1-14" tabindex="-1"></a>)</span>
+<span id="cb1-15"><a href="#cb1-15" tabindex="-1"></a></span>
+<span id="cb1-16"><a href="#cb1-16" tabindex="-1"></a><span class="fu">print</span>(ny_fit)</span>
+<span id="cb1-17"><a href="#cb1-17" tabindex="-1"></a><span class="co">#&gt; A bi_projector object with the following properties:</span></span>
+<span id="cb1-18"><a href="#cb1-18" tabindex="-1"></a><span class="co">#&gt; </span></span>
+<span id="cb1-19"><a href="#cb1-19" tabindex="-1"></a><span class="co">#&gt; Dimensions of the weights (v) matrix:</span></span>
+<span id="cb1-20"><a href="#cb1-20" tabindex="-1"></a><span class="co">#&gt;   Rows:  1000  Columns:  10 </span></span>
+<span id="cb1-21"><a href="#cb1-21" tabindex="-1"></a><span class="co">#&gt; </span></span>
+<span id="cb1-22"><a href="#cb1-22" tabindex="-1"></a><span class="co">#&gt; Dimensions of the scores (s) matrix:</span></span>
+<span id="cb1-23"><a href="#cb1-23" tabindex="-1"></a><span class="co">#&gt;   Rows:  1000  Columns:  10 </span></span>
+<span id="cb1-24"><a href="#cb1-24" tabindex="-1"></a><span class="co">#&gt; </span></span>
+<span id="cb1-25"><a href="#cb1-25" tabindex="-1"></a><span class="co">#&gt; Length of the standard deviations (sdev) vector:</span></span>
+<span id="cb1-26"><a href="#cb1-26" tabindex="-1"></a><span class="co">#&gt;   Length:  10 </span></span>
+<span id="cb1-27"><a href="#cb1-27" tabindex="-1"></a><span class="co">#&gt; </span></span>
+<span id="cb1-28"><a href="#cb1-28" tabindex="-1"></a><span class="co">#&gt; Preprocessing information:</span></span>
+<span id="cb1-29"><a href="#cb1-29" tabindex="-1"></a><span class="co">#&gt; A finalized pre-processing pipeline:</span></span>
+<span id="cb1-30"><a href="#cb1-30" tabindex="-1"></a><span class="co">#&gt;  Step  1 : center</span></span>
+<span id="cb1-31"><a href="#cb1-31" tabindex="-1"></a></span>
+<span id="cb1-32"><a href="#cb1-32" tabindex="-1"></a><span class="co"># Standard bi_projector interface</span></span>
+<span id="cb1-33"><a href="#cb1-33" tabindex="-1"></a><span class="fu">head</span>(<span class="fu">scores</span>(ny_fit))</span>
+<span id="cb1-34"><a href="#cb1-34" tabindex="-1"></a><span class="co">#&gt;             [,1]        [,2]       [,3]       [,4]         [,5]        [,6]</span></span>
+<span id="cb1-35"><a href="#cb1-35" tabindex="-1"></a><span class="co">#&gt; [1,]  1.45270292  0.03749928 -0.2368871  0.1187156 -0.416524468  0.58381281</span></span>
+<span id="cb1-36"><a href="#cb1-36" tabindex="-1"></a><span class="co">#&gt; [2,] -0.08553264  0.21098943  2.0174421  0.2780763  0.016232223  1.46634110</span></span>
+<span id="cb1-37"><a href="#cb1-37" tabindex="-1"></a><span class="co">#&gt; [3,]  1.35999975  2.38423969 -0.7357389  0.4051195  0.289000747 -0.24190588</span></span>
+<span id="cb1-38"><a href="#cb1-38" tabindex="-1"></a><span class="co">#&gt; [4,] -0.14581306 -0.32474655 -1.6893599  1.0902513 -0.972903175  0.03148513</span></span>
+<span id="cb1-39"><a href="#cb1-39" tabindex="-1"></a><span class="co">#&gt; [5,]  1.03295739 -0.85262013 -0.8882174 -0.2777049 -1.048920775  0.12657430</span></span>
+<span id="cb1-40"><a href="#cb1-40" tabindex="-1"></a><span class="co">#&gt; [6,] -0.98488361  0.15283689 -1.1922802 -0.5915995 -0.008715646 -2.10974250</span></span>
+<span id="cb1-41"><a href="#cb1-41" tabindex="-1"></a><span class="co">#&gt;            [,7]        [,8]       [,9]      [,10]</span></span>
+<span id="cb1-42"><a href="#cb1-42" tabindex="-1"></a><span class="co">#&gt; [1,]  0.1024324 -0.06344357 -1.8224682 -0.4924368</span></span>
+<span id="cb1-43"><a href="#cb1-43" tabindex="-1"></a><span class="co">#&gt; [2,]  1.1993310  0.27285706  1.4943231 -0.6030422</span></span>
+<span id="cb1-44"><a href="#cb1-44" tabindex="-1"></a><span class="co">#&gt; [3,]  0.9969271 -0.70227209 -1.0836289  0.5889711</span></span>
+<span id="cb1-45"><a href="#cb1-45" tabindex="-1"></a><span class="co">#&gt; [4,]  1.1429161 -0.14968205  0.7300808  1.3913713</span></span>
+<span id="cb1-46"><a href="#cb1-46" tabindex="-1"></a><span class="co">#&gt; [5,] -0.6772174 -0.36304203  0.4231099  1.5737886</span></span>
+<span id="cb1-47"><a href="#cb1-47" tabindex="-1"></a><span class="co">#&gt; [6,]  0.0955964  1.30091786  1.7640812  0.7613047</span></span></code></pre></div>
+</div>
+<div id="specifying-a-kernel-function" class="section level2">
+<h2>Specifying a Kernel Function</h2>
+<p>By default, <code>nystrom_approx()</code> uses a linear kernel. You
+can provide any kernel function:</p>
+<div class="sourceCode" id="cb2"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb2-1"><a href="#cb2-1" tabindex="-1"></a><span class="co"># RBF (Gaussian) kernel</span></span>
+<span id="cb2-2"><a href="#cb2-2" tabindex="-1"></a>rbf_kernel <span class="ot">&lt;-</span> <span class="cf">function</span>(X, <span class="at">Y =</span> <span class="cn">NULL</span>, <span class="at">sigma =</span> <span class="dv">1</span>) {</span>
+<span id="cb2-3"><a href="#cb2-3" tabindex="-1"></a>  <span class="cf">if</span> (<span class="fu">is.null</span>(Y)) Y <span class="ot">&lt;-</span> X</span>
+<span id="cb2-4"><a href="#cb2-4" tabindex="-1"></a></span>
+<span id="cb2-5"><a href="#cb2-5" tabindex="-1"></a>  sumX2 <span class="ot">&lt;-</span> <span class="fu">rowSums</span>(X<span class="sc">^</span><span class="dv">2</span>)</span>
+<span id="cb2-6"><a href="#cb2-6" tabindex="-1"></a>  sumY2 <span class="ot">&lt;-</span> <span class="fu">rowSums</span>(Y<span class="sc">^</span><span class="dv">2</span>)</span>
+<span id="cb2-7"><a href="#cb2-7" tabindex="-1"></a>  sqdist <span class="ot">&lt;-</span> <span class="fu">outer</span>(sumX2, sumY2, <span class="st">`</span><span class="at">+</span><span class="st">`</span>) <span class="sc">-</span> <span class="dv">2</span> <span class="sc">*</span> <span class="fu">tcrossprod</span>(X, Y)</span>
+<span id="cb2-8"><a href="#cb2-8" tabindex="-1"></a>  sqdist[sqdist <span class="sc">&lt;</span> <span class="dv">0</span>] <span class="ot">&lt;-</span> <span class="dv">0</span></span>
+<span id="cb2-9"><a href="#cb2-9" tabindex="-1"></a></span>
+<span id="cb2-10"><a href="#cb2-10" tabindex="-1"></a>  <span class="fu">exp</span>(<span class="sc">-</span>sqdist <span class="sc">/</span> (<span class="dv">2</span> <span class="sc">*</span> sigma<span class="sc">^</span><span class="dv">2</span>))</span>
+<span id="cb2-11"><a href="#cb2-11" tabindex="-1"></a>}</span>
+<span id="cb2-12"><a href="#cb2-12" tabindex="-1"></a></span>
+<span id="cb2-13"><a href="#cb2-13" tabindex="-1"></a>ny_rbf <span class="ot">&lt;-</span> <span class="fu">nystrom_approx</span>(</span>
+<span id="cb2-14"><a href="#cb2-14" tabindex="-1"></a>  X,</span>
+<span id="cb2-15"><a href="#cb2-15" tabindex="-1"></a>  <span class="at">kernel_func =</span> rbf_kernel,</span>
+<span id="cb2-16"><a href="#cb2-16" tabindex="-1"></a>  <span class="at">ncomp =</span> <span class="dv">10</span>,</span>
+<span id="cb2-17"><a href="#cb2-17" tabindex="-1"></a>  <span class="at">nlandmarks =</span> <span class="dv">100</span></span>
+<span id="cb2-18"><a href="#cb2-18" tabindex="-1"></a>)</span></code></pre></div>
+</div>
+<div id="projecting-new-data" class="section level2">
+<h2>Projecting New Data</h2>
+<p>The result is a <code>bi_projector</code>, so you can project new
+observations:</p>
+<div class="sourceCode" id="cb3"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb3-1"><a href="#cb3-1" tabindex="-1"></a>X_new <span class="ot">&lt;-</span> <span class="fu">matrix</span>(<span class="fu">rnorm</span>(<span class="dv">50</span> <span class="sc">*</span> p), <span class="dv">50</span>, p)</span>
+<span id="cb3-2"><a href="#cb3-2" tabindex="-1"></a>new_scores <span class="ot">&lt;-</span> <span class="fu">project</span>(ny_fit, X_new)</span>
+<span id="cb3-3"><a href="#cb3-3" tabindex="-1"></a><span class="fu">dim</span>(new_scores)</span>
+<span id="cb3-4"><a href="#cb3-4" tabindex="-1"></a><span class="co">#&gt; [1] 50 10</span></span></code></pre></div>
+</div>
+<div id="double-nyström-for-extra-speed" class="section level2">
+<h2>Double Nyström for Extra Speed</h2>
+<p>For very large datasets, the “double” method applies the
+approximation twice, reducing complexity further:</p>
+<div class="sourceCode" id="cb4"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb4-1"><a href="#cb4-1" tabindex="-1"></a><span class="co"># Standard method</span></span>
+<span id="cb4-2"><a href="#cb4-2" tabindex="-1"></a><span class="fu">system.time</span>(</span>
+<span id="cb4-3"><a href="#cb4-3" tabindex="-1"></a></span>
+<span id="cb4-4"><a href="#cb4-4" tabindex="-1"></a>  ny_standard <span class="ot">&lt;-</span> <span class="fu">nystrom_approx</span>(X, <span class="at">ncomp =</span> <span class="dv">5</span>, <span class="at">nlandmarks =</span> <span class="dv">200</span>, <span class="at">method =</span> <span class="st">&quot;standard&quot;</span>)</span>
+<span id="cb4-5"><a href="#cb4-5" tabindex="-1"></a>)</span>
+<span id="cb4-6"><a href="#cb4-6" tabindex="-1"></a><span class="co">#&gt;    user  system elapsed </span></span>
+<span id="cb4-7"><a href="#cb4-7" tabindex="-1"></a><span class="co">#&gt;   0.010   0.001   0.011</span></span>
+<span id="cb4-8"><a href="#cb4-8" tabindex="-1"></a></span>
+<span id="cb4-9"><a href="#cb4-9" tabindex="-1"></a><span class="co"># Double Nyström (faster with intermediate rank l)</span></span>
+<span id="cb4-10"><a href="#cb4-10" tabindex="-1"></a><span class="fu">system.time</span>(</span>
+<span id="cb4-11"><a href="#cb4-11" tabindex="-1"></a>  ny_double <span class="ot">&lt;-</span> <span class="fu">nystrom_approx</span>(X, <span class="at">ncomp =</span> <span class="dv">5</span>, <span class="at">nlandmarks =</span> <span class="dv">200</span>, <span class="at">method =</span> <span class="st">&quot;double&quot;</span>, <span class="at">l =</span> <span class="dv">50</span>)</span>
+<span id="cb4-12"><a href="#cb4-12" tabindex="-1"></a>)</span>
+<span id="cb4-13"><a href="#cb4-13" tabindex="-1"></a><span class="co">#&gt;    user  system elapsed </span></span>
+<span id="cb4-14"><a href="#cb4-14" tabindex="-1"></a><span class="co">#&gt;   0.014   0.000   0.014</span></span></code></pre></div>
+</div>
+<div id="choosing-parameters" class="section level2">
+<h2>Choosing Parameters</h2>
+<div id="number-of-landmarks" class="section level3">
+<h3>Number of Landmarks</h3>
+<table>
+<thead>
+<tr class="header">
+<th>Dataset Size</th>
+<th>Suggested Landmarks</th>
+<th>Notes</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>&lt; 1,000</td>
+<td>50–200</td>
+<td>Larger fraction acceptable</td>
+</tr>
+<tr class="even">
+<td>1,000–10,000</td>
+<td>200–500</td>
+<td>Good accuracy/speed balance</td>
+</tr>
+<tr class="odd">
+<td>&gt; 10,000</td>
+<td>500–2,000</td>
+<td>Consider Double Nyström</td>
+</tr>
+</tbody>
+</table>
+</div>
+<div id="method-selection" class="section level3">
+<h3>Method Selection</h3>
+<ul>
+<li><strong>Standard</strong>: Higher accuracy, use when m &lt;
+2,000</li>
+<li><strong>Double</strong>: Faster for very large m, adds intermediate
+rank parameter <code>l</code></li>
+</ul>
+</div>
+</div>
+<div id="technical-details" class="section level2">
+<h2>Technical Details</h2>
+<details>
+<summary>
+Click for mathematical details
+</summary>
+<p>The Nyström approximation uses the fact that a positive semi-definite
+matrix K can be approximated as:</p>
+<p><span class="math display">\[K \approx K_{nm} K_{mm}^{-1}
+K_{mn}\]</span></p>
+<p>where: - <span class="math inline">\(K_{mm}\)</span> is the m × m
+matrix between landmarks - <span class="math inline">\(K_{nm}\)</span>
+is the N × m matrix between all points and landmarks</p>
+<p>The eigendecomposition of this approximation can be computed
+efficiently: 1. Compute eigendecomposition of <span class="math inline">\(K_{mm} = U_m \Lambda_m U_m^T\)</span> 2.
+Approximate eigenvectors of K as: <span class="math inline">\(U \approx
+K_{nm} U_m \Lambda_m^{-1/2}\)</span></p>
+<p>Double Nyström applies this approximation recursively, reducing
+complexity from O(Nm² + m³) to O(Nml + l³) where l &lt;&lt; m.</p>
+</details>
+</div>
+<div id="references" class="section level2">
+<h2>References</h2>
+<ul>
+<li>Williams, C. K. I., &amp; Seeger, M. (2001). Using the Nyström
+Method to Speed Up Kernel Machines. <em>NIPS</em>.</li>
+<li>Lim, D., Jin, R., &amp; Zhang, L. (2015). An Efficient and Accurate
+Nyström Scheme for Large-Scale Data Sets. <em>AAAI</em>.</li>
+</ul>
+</div>
+<div id="see-also" class="section level2">
+<h2>See Also</h2>
+<ul>
+<li><code>pca()</code> for standard PCA on smaller datasets</li>
+<li><code>svd_wrapper()</code> for various SVD backends</li>
+</ul>
+</div>
+
+
+
+<!-- code folding -->
+
+
+<!-- dynamically load mathjax for compatibility with self-contained -->
+<script>
+  (function () {
+    var script = document.createElement("script");
+    script.type = "text/javascript";
+    script.src  = "https://mathjax.rstudio.com/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML";
+    document.getElementsByTagName("head")[0].appendChild(script);
+  })();
+</script>
+
+</body>
+</html>

@@ -48,6 +48,7 @@ overflow: visible;
 }
 </style>
 <style type="text/css" data-origin="pandoc">
+html { -webkit-text-size-adjust: 100%; }
 pre > code.sourceCode { white-space: pre; position: relative; }
 pre > code.sourceCode > span { display: inline-block; line-height: 1.25; }
 pre > code.sourceCode > span:empty { height: 1.2em; }
@@ -341,147 +342,209 @@ Package</h1>
 
 
 
-<div id="introduction" class="section level2">
-<h2>Introduction</h2>
-<p>The multivarious package provides generic functions and some basic
-implementations for dimensionality reduction of high-dimensional data.
-This vignette focuses on two main classes in the package, projector and
-bi_projector, and demonstrates how to use the project function for
-projecting new data onto a lower-dimensional subspace.</p>
+<div id="the-goal-unified-dimensionality-reduction" class="section level2">
+<h2>The Goal: Unified Dimensionality Reduction</h2>
+<p>Multivariate data analysis often involves reducing dimensionality or
+transforming data using techniques like Principal Component Analysis
+(PCA), Partial Least Squares (PLS), Contrastive PCA (cPCA), Nyström
+approximation for Kernel PCA, or representing data in a specific basis
+(e.g., Fourier, splines). While each method has unique mathematical
+underpinnings, they share common operational needs:</p>
+<ul>
+<li>Fitting the model to training data.</li>
+<li>Extracting key components (scores, loadings/coefficients).</li>
+<li>Projecting <em>new</em> data points into the reduced/transformed
+space.</li>
+<li>Reconstructing approximations of the original data from the reduced
+space.</li>
+<li>Integrating these steps with pre-processing (like centering or
+scaling).</li>
+<li>Comparing or tuning models using cross-validation.</li>
+</ul>
+<p>Handling these tasks consistently across different algorithms can
+lead to repetitive code and complex workflows. The
+<strong><code>multivarious</code> package aims to simplify this by
+providing a unified interface</strong> centered around the concept of a
+<strong><code>bi_projector</code></strong>.</p>
 </div>
-<div id="projector-and-bi-projector-classes" class="section level2">
-<h2>Projector and Bi-projector Classes</h2>
-<p>projector and bi_projector are two core classes in the
-<code>multivarious</code> package. They represent linear transformations
-from a high-dimensional space to a lower-dimensional space.</p>
+<div id="the-bi_projector-a-two-way-map" class="section level2">
+<h2>The <code>bi_projector</code>: A Two-Way Map</h2>
+<p>The <code>bi_projector</code> class is the cornerstone of
+<code>multivarious</code>. It represents a linear transformation (or an
+approximation thereof) that provides a <strong>two-way
+mapping</strong>:</p>
+<ol style="list-style-type: decimal">
+<li><strong>Samples (Rows) ↔︎ Scores:</strong> Maps data points from the
+original high-dimensional space to a lower-dimensional latent space
+(scores), and potentially back.</li>
+<li><strong>Variables (Columns) ↔︎ Components/Loadings:</strong> Maps
+original variables to their representation in the latent space
+(loadings/components), and potentially back.</li>
+</ol>
+<p>Think of it as encapsulating the core results of a dimensionality
+reduction technique (like the U, S, V components of an SVD, or the
+scores and loadings of PCA/PLS) along with any necessary pre-processing
+information.</p>
+<p>Crucially, many functions within <code>multivarious</code> (e.g.,
+<code>pca()</code>, <code>pls()</code>, <code>cPCAplus()</code>,
+<code>nystrom_approx()</code>, <code>regress()</code>) return objects
+that inherit from <code>bi_projector</code>.</p>
 </div>
-<div id="projector" class="section level2">
-<h2>Projector</h2>
-<p>A projector instance maps a matrix from an <span class="math inline">\(N\)</span>-dimensional space to a <span class="math inline">\(d\)</span>-dimensional space, where <span class="math inline">\(d\)</span> may be less than <span class="math inline">\(N\)</span>. The projection matrix, <span class="math inline">\(V\)</span>, is not necessarily orthogonal. This
-class can be used for various dimensionality reduction techniques like
-PCA, LDA, etc.</p>
+<div id="key-actions-with-a-bi_projector" class="section level2">
+<h2>Key Actions with a <code>bi_projector</code></h2>
+<p>Because different methods return a <code>bi_projector</code>, you can
+perform common tasks using a consistent set of verbs:</p>
+<ul>
+<li><code>scores(model)</code>: Get the scores (latent space
+representation) of the <em>training</em> data.</li>
+<li><code>coef(model)</code> or <code>loadings(model)</code>: Get the
+loadings or coefficients mapping variables to components.</li>
+<li><code>project(model, newdata)</code>: Project <em>new</em> samples
+(rows of <code>newdata</code>) into the latent space defined by the
+<code>model</code>.</li>
+<li><code>reconstruct(model, ...)</code>: Reconstruct an approximation
+of the original data from the latent space (either from training scores
+or provided new scores/coefficients).</li>
+<li><code>truncate(model, ncomp)</code>: Reduce the number of components
+kept in the model.</li>
+<li><code>summary(model)</code>: Get a concise summary of the model
+dimensions.</li>
+</ul>
+<p>This consistent API simplifies writing generic analysis code and
+makes it easier to swap between different dimensionality reduction
+methods.</p>
 </div>
-<div id="bi-projector" class="section level2">
-<h2>Bi-projector</h2>
-<p>A bi_projector instance offers a two-way mapping from samples (rows)
-to scores and from variables (columns) to components. This allows
-projecting from a <span class="math inline">\(D\)</span>-dimensional
-input space to a <span class="math inline">\(d\)</span>-dimensional
-subspace, and projecting from an <span class="math inline">\(n\)</span>-dimensional variable space to the <span class="math inline">\(d\)</span>-dimensional component space. The
-singular value decomposition (SVD) is a canonical example of such a
-two-way mapping.</p>
+<div id="example-pca-workflow" class="section level2">
+<h2>Example: PCA Workflow</h2>
+<p>Let’s demonstrate a typical workflow using PCA on the classic
+<code>iris</code> dataset.</p>
+<div class="sourceCode" id="cb1"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb1-1"><a href="#cb1-1" tabindex="-1"></a><span class="co"># Load iris dataset and select numeric columns</span></span>
+<span id="cb1-2"><a href="#cb1-2" tabindex="-1"></a><span class="fu">data</span>(iris)</span>
+<span id="cb1-3"><a href="#cb1-3" tabindex="-1"></a>X <span class="ot">&lt;-</span> <span class="fu">as.matrix</span>(iris[, <span class="dv">1</span><span class="sc">:</span><span class="dv">4</span>])</span>
+<span id="cb1-4"><a href="#cb1-4" tabindex="-1"></a></span>
+<span id="cb1-5"><a href="#cb1-5" tabindex="-1"></a><span class="co"># 1. Define a pre-processor (center the data)</span></span>
+<span id="cb1-6"><a href="#cb1-6" tabindex="-1"></a>preproc <span class="ot">&lt;-</span> <span class="fu">center</span>()</span>
+<span id="cb1-7"><a href="#cb1-7" tabindex="-1"></a></span>
+<span id="cb1-8"><a href="#cb1-8" tabindex="-1"></a><span class="co"># 2. Fit PCA using svd_wrapper, keeping 3 components</span></span>
+<span id="cb1-9"><a href="#cb1-9" tabindex="-1"></a><span class="co">#    The pre-processor is applied internally.</span></span>
+<span id="cb1-10"><a href="#cb1-10" tabindex="-1"></a>fit <span class="ot">&lt;-</span> <span class="fu">pca</span>(X, <span class="at">ncomp =</span> <span class="dv">3</span>, <span class="at">preproc =</span> preproc)</span>
+<span id="cb1-11"><a href="#cb1-11" tabindex="-1"></a></span>
+<span id="cb1-12"><a href="#cb1-12" tabindex="-1"></a><span class="co"># The result &#39;fit&#39; is a bi_projector</span></span>
+<span id="cb1-13"><a href="#cb1-13" tabindex="-1"></a><span class="fu">print</span>(fit)</span>
+<span id="cb1-14"><a href="#cb1-14" tabindex="-1"></a><span class="co">#&gt; PCA object  -- derived from SVD</span></span>
+<span id="cb1-15"><a href="#cb1-15" tabindex="-1"></a><span class="co">#&gt; </span></span>
+<span id="cb1-16"><a href="#cb1-16" tabindex="-1"></a><span class="co">#&gt; Data: 150 observations x 4 variables</span></span>
+<span id="cb1-17"><a href="#cb1-17" tabindex="-1"></a><span class="co">#&gt; Components retained: 3</span></span>
+<span id="cb1-18"><a href="#cb1-18" tabindex="-1"></a><span class="co">#&gt; </span></span>
+<span id="cb1-19"><a href="#cb1-19" tabindex="-1"></a><span class="co">#&gt; Variance explained (per component):</span></span>
+<span id="cb1-20"><a href="#cb1-20" tabindex="-1"></a><span class="co">#&gt;  1 2 3  92.95  5.33  1.72%  (cumulative:  92.95 98.28   100%)</span></span>
+<span id="cb1-21"><a href="#cb1-21" tabindex="-1"></a></span>
+<span id="cb1-22"><a href="#cb1-22" tabindex="-1"></a><span class="co"># 3. Access results</span></span>
+<span id="cb1-23"><a href="#cb1-23" tabindex="-1"></a>iris_scores <span class="ot">&lt;-</span> <span class="fu">scores</span>(fit) <span class="co"># Scores of the centered training data (150 x 3)</span></span>
+<span id="cb1-24"><a href="#cb1-24" tabindex="-1"></a>iris_loadings <span class="ot">&lt;-</span> <span class="fu">loadings</span>(fit) <span class="co"># Loadings (4 x 3)</span></span>
+<span id="cb1-25"><a href="#cb1-25" tabindex="-1"></a><span class="fu">cat</span>(<span class="st">&quot;</span><span class="sc">\n</span><span class="st">Dimensions of Scores:&quot;</span>, <span class="fu">dim</span>(iris_scores), <span class="st">&quot;</span><span class="sc">\n</span><span class="st">&quot;</span>)</span>
+<span id="cb1-26"><a href="#cb1-26" tabindex="-1"></a><span class="co">#&gt; </span></span>
+<span id="cb1-27"><a href="#cb1-27" tabindex="-1"></a><span class="co">#&gt; Dimensions of Scores: 150 3</span></span>
+<span id="cb1-28"><a href="#cb1-28" tabindex="-1"></a><span class="fu">cat</span>(<span class="st">&quot;Dimensions of Loadings:&quot;</span>, <span class="fu">dim</span>(iris_loadings), <span class="st">&quot;</span><span class="sc">\n</span><span class="st">&quot;</span>)</span>
+<span id="cb1-29"><a href="#cb1-29" tabindex="-1"></a><span class="co">#&gt; Dimensions of Loadings:</span></span>
+<span id="cb1-30"><a href="#cb1-30" tabindex="-1"></a></span>
+<span id="cb1-31"><a href="#cb1-31" tabindex="-1"></a><span class="co"># 4. Project new data</span></span>
+<span id="cb1-32"><a href="#cb1-32" tabindex="-1"></a><span class="co"># Create some new iris-like samples (5 samples, 4 variables)</span></span>
+<span id="cb1-33"><a href="#cb1-33" tabindex="-1"></a><span class="fu">set.seed</span>(<span class="dv">123</span>)</span>
+<span id="cb1-34"><a href="#cb1-34" tabindex="-1"></a>new_iris_data <span class="ot">&lt;-</span> <span class="fu">matrix</span>(<span class="fu">rnorm</span>(<span class="dv">5</span> <span class="sc">*</span> <span class="dv">4</span>, <span class="at">mean =</span> <span class="fu">colMeans</span>(X), <span class="at">sd =</span> <span class="fu">apply</span>(X, <span class="dv">2</span>, sd)), </span>
+<span id="cb1-35"><a href="#cb1-35" tabindex="-1"></a>                        <span class="at">nrow =</span> <span class="dv">5</span>, <span class="at">byrow =</span> <span class="cn">TRUE</span>)</span>
+<span id="cb1-36"><a href="#cb1-36" tabindex="-1"></a></span>
+<span id="cb1-37"><a href="#cb1-37" tabindex="-1"></a><span class="co"># Project the new data into the PCA space defined by &#39;fit&#39;</span></span>
+<span id="cb1-38"><a href="#cb1-38" tabindex="-1"></a><span class="co"># Pre-processing (centering using training data means) is applied automatically.</span></span>
+<span id="cb1-39"><a href="#cb1-39" tabindex="-1"></a>projected_new_scores <span class="ot">&lt;-</span> <span class="fu">project</span>(fit, new_iris_data)</span>
+<span id="cb1-40"><a href="#cb1-40" tabindex="-1"></a><span class="fu">cat</span>(<span class="st">&quot;</span><span class="sc">\n</span><span class="st">Dimensions of Projected New Data Scores:&quot;</span>, <span class="fu">dim</span>(projected_new_scores), <span class="st">&quot;</span><span class="sc">\n</span><span class="st">&quot;</span>)</span>
+<span id="cb1-41"><a href="#cb1-41" tabindex="-1"></a><span class="co">#&gt; </span></span>
+<span id="cb1-42"><a href="#cb1-42" tabindex="-1"></a><span class="co">#&gt; Dimensions of Projected New Data Scores: 5 3</span></span>
+<span id="cb1-43"><a href="#cb1-43" tabindex="-1"></a><span class="fu">print</span>(<span class="fu">head</span>(projected_new_scores))</span>
+<span id="cb1-44"><a href="#cb1-44" tabindex="-1"></a><span class="co">#&gt;            [,1]       [,2]        [,3]</span></span>
+<span id="cb1-45"><a href="#cb1-45" tabindex="-1"></a><span class="co">#&gt; [1,] -2.2172144  0.8590909 -0.44924532</span></span>
+<span id="cb1-46"><a href="#cb1-46" tabindex="-1"></a><span class="co">#&gt; [2,] -0.3270495 -0.5478369  0.07965279</span></span>
+<span id="cb1-47"><a href="#cb1-47" tabindex="-1"></a><span class="co">#&gt; [3,] -1.7602954  0.9106117 -0.52932939</span></span>
+<span id="cb1-48"><a href="#cb1-48" tabindex="-1"></a><span class="co">#&gt; [4,]  0.2367242 -0.3204326 -0.50433574</span></span>
+<span id="cb1-49"><a href="#cb1-49" tabindex="-1"></a><span class="co">#&gt; [5,] -1.1529598  0.5426518  0.85478044</span></span>
+<span id="cb1-50"><a href="#cb1-50" tabindex="-1"></a></span>
+<span id="cb1-51"><a href="#cb1-51" tabindex="-1"></a><span class="co"># 5. Reconstruct approximated original data from scores</span></span>
+<span id="cb1-52"><a href="#cb1-52" tabindex="-1"></a><span class="co"># Reconstruct the first few original samples</span></span>
+<span id="cb1-53"><a href="#cb1-53" tabindex="-1"></a>reconstructed_X_approx <span class="ot">&lt;-</span> <span class="fu">reconstruct</span>(fit, <span class="at">comp=</span><span class="dv">1</span><span class="sc">:</span><span class="dv">3</span>) <span class="co"># uses scores(fit) by default</span></span>
+<span id="cb1-54"><a href="#cb1-54" tabindex="-1"></a><span class="fu">cat</span>(<span class="st">&quot;</span><span class="sc">\n</span><span class="st">Reconstructed Approximation of Original Data (first 5 rows):</span><span class="sc">\n</span><span class="st">&quot;</span>)</span>
+<span id="cb1-55"><a href="#cb1-55" tabindex="-1"></a><span class="co">#&gt; </span></span>
+<span id="cb1-56"><a href="#cb1-56" tabindex="-1"></a><span class="co">#&gt; Reconstructed Approximation of Original Data (first 5 rows):</span></span>
+<span id="cb1-57"><a href="#cb1-57" tabindex="-1"></a><span class="fu">print</span>(<span class="fu">head</span>(reconstructed_X_approx))</span>
+<span id="cb1-58"><a href="#cb1-58" tabindex="-1"></a><span class="co">#&gt;          [,1]     [,2]     [,3]      [,4]</span></span>
+<span id="cb1-59"><a href="#cb1-59" tabindex="-1"></a><span class="co">#&gt; [1,] 5.099286 3.500723 1.401086 0.1982949</span></span>
+<span id="cb1-60"><a href="#cb1-60" tabindex="-1"></a><span class="co">#&gt; [2,] 4.868758 3.031661 1.447517 0.1253679</span></span>
+<span id="cb1-61"><a href="#cb1-61" tabindex="-1"></a><span class="co">#&gt; [3,] 4.693700 3.206384 1.309582 0.1849507</span></span>
+<span id="cb1-62"><a href="#cb1-62" tabindex="-1"></a><span class="co">#&gt; [4,] 4.623843 3.075837 1.463736 0.2569583</span></span>
+<span id="cb1-63"><a href="#cb1-63" tabindex="-1"></a><span class="co">#&gt; [5,] 5.019326 3.580414 1.370606 0.2461680</span></span>
+<span id="cb1-64"><a href="#cb1-64" tabindex="-1"></a><span class="co">#&gt; [6,] 5.407635 3.892262 1.688387 0.4182392</span></span>
+<span id="cb1-65"><a href="#cb1-65" tabindex="-1"></a></span>
+<span id="cb1-66"><a href="#cb1-66" tabindex="-1"></a><span class="fu">print</span>(<span class="fu">head</span>(X)) <span class="co"># Original data for comparison</span></span>
+<span id="cb1-67"><a href="#cb1-67" tabindex="-1"></a><span class="co">#&gt;      Sepal.Length Sepal.Width Petal.Length Petal.Width</span></span>
+<span id="cb1-68"><a href="#cb1-68" tabindex="-1"></a><span class="co">#&gt; [1,]          5.1         3.5          1.4         0.2</span></span>
+<span id="cb1-69"><a href="#cb1-69" tabindex="-1"></a><span class="co">#&gt; [2,]          4.9         3.0          1.4         0.2</span></span>
+<span id="cb1-70"><a href="#cb1-70" tabindex="-1"></a><span class="co">#&gt; [3,]          4.7         3.2          1.3         0.2</span></span>
+<span id="cb1-71"><a href="#cb1-71" tabindex="-1"></a><span class="co">#&gt; [4,]          4.6         3.1          1.5         0.2</span></span>
+<span id="cb1-72"><a href="#cb1-72" tabindex="-1"></a><span class="co">#&gt; [5,]          5.0         3.6          1.4         0.2</span></span>
+<span id="cb1-73"><a href="#cb1-73" tabindex="-1"></a><span class="co">#&gt; [6,]          5.4         3.9          1.7         0.4</span></span></code></pre></div>
+<p>This example shows how fitting (<code>pca</code>), accessing results
+(<code>scores</code>, <code>loadings</code>), and applying the model to
+new data (<code>project</code>) follow a consistent pattern, regardless
+of whether the underlying method was PCA, PLS, or another technique
+returning a <code>bi_projector</code>.</p>
 </div>
-<div id="the-project-function" class="section level2">
-<h2>The Project Function</h2>
-<p>The project function is a generic function that takes a model fit
-(typically an object of class bi_projector or any other class that
-implements a project method) and new observations. It projects these
-observations onto the subspace defined by the model. This enables the
-transformation of new data into the same lower-dimensional space as the
-original data. Mathematically, projection consists of the following:</p>
-<p><span class="math display">\[
-X \approx USV^T
-\]</span></p>
-<p><span class="math display">\[
-\text{projected_data} = \text{new_data} \cdot V
-\]</span></p>
+<div id="beyond-basic-projection-the-multivarious-ecosystem" class="section level2">
+<h2>Beyond Basic Projection: The <code>multivarious</code>
+Ecosystem</h2>
+<p>The unified <code>bi_projector</code> interface enables several
+powerful features within the package:</p>
+<ul>
+<li><strong>Pre-processing Pipelines:</strong> Define reusable
+pre-processing steps (see <code>vignette(&quot;PreProcessing&quot;)</code>).</li>
+<li><strong>Model Composition:</strong> Chain multiple
+<code>bi_projector</code> steps together (e.g., pre-processing → PCA →
+rotation) into a single composite projector (see
+<code>vignette(&quot;Composing_Projectors&quot;)</code>).</li>
+<li><strong>Cross-Validation:</strong> Easily perform cross-validation
+to select hyperparameters (like the number of components) using helpers
+that understand the <code>bi_projector</code> structure (see
+<code>vignette(&quot;CrossValidation&quot;)</code>).</li>
+</ul>
 </div>
-<div id="example" class="section level2">
-<h2>Example</h2>
-<p>In this example, we will demonstrate how to create a bi_projector
-object using the results of an SVD and project new data onto the same
-subspace as the original data.</p>
-<div class="sourceCode" id="cb1"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb1-1"><a href="#cb1-1" tabindex="-1"></a></span>
-<span id="cb1-2"><a href="#cb1-2" tabindex="-1"></a><span class="co"># Load the multivarious package</span></span>
-<span id="cb1-3"><a href="#cb1-3" tabindex="-1"></a><span class="fu">library</span>(multivarious)</span>
-<span id="cb1-4"><a href="#cb1-4" tabindex="-1"></a><span class="co">#&gt; </span></span>
-<span id="cb1-5"><a href="#cb1-5" tabindex="-1"></a><span class="co">#&gt; Attaching package: &#39;multivarious&#39;</span></span>
-<span id="cb1-6"><a href="#cb1-6" tabindex="-1"></a><span class="co">#&gt; The following object is masked from &#39;package:stats&#39;:</span></span>
-<span id="cb1-7"><a href="#cb1-7" tabindex="-1"></a><span class="co">#&gt; </span></span>
-<span id="cb1-8"><a href="#cb1-8" tabindex="-1"></a><span class="co">#&gt;     residuals</span></span>
-<span id="cb1-9"><a href="#cb1-9" tabindex="-1"></a><span class="co">#&gt; The following object is masked from &#39;package:base&#39;:</span></span>
-<span id="cb1-10"><a href="#cb1-10" tabindex="-1"></a><span class="co">#&gt; </span></span>
-<span id="cb1-11"><a href="#cb1-11" tabindex="-1"></a><span class="co">#&gt;     truncate</span></span>
-<span id="cb1-12"><a href="#cb1-12" tabindex="-1"></a></span>
-<span id="cb1-13"><a href="#cb1-13" tabindex="-1"></a><span class="co"># Create a synthetic dataset</span></span>
-<span id="cb1-14"><a href="#cb1-14" tabindex="-1"></a><span class="fu">set.seed</span>(<span class="dv">42</span>)</span>
-<span id="cb1-15"><a href="#cb1-15" tabindex="-1"></a>X <span class="ot">&lt;-</span> <span class="fu">matrix</span>(<span class="fu">rnorm</span>(<span class="dv">200</span>), <span class="dv">10</span>, <span class="dv">20</span>)</span>
-<span id="cb1-16"><a href="#cb1-16" tabindex="-1"></a></span>
-<span id="cb1-17"><a href="#cb1-17" tabindex="-1"></a><span class="co"># Perform SVD on the dataset</span></span>
-<span id="cb1-18"><a href="#cb1-18" tabindex="-1"></a>svdfit <span class="ot">&lt;-</span> <span class="fu">svd</span>(X)</span>
-<span id="cb1-19"><a href="#cb1-19" tabindex="-1"></a></span>
-<span id="cb1-20"><a href="#cb1-20" tabindex="-1"></a><span class="co"># Create a bi_projector object</span></span>
-<span id="cb1-21"><a href="#cb1-21" tabindex="-1"></a>p <span class="ot">&lt;-</span> <span class="fu">bi_projector</span>(svdfit<span class="sc">$</span>v, <span class="at">s =</span> svdfit<span class="sc">$</span>u <span class="sc">%*%</span> <span class="fu">diag</span>(svdfit<span class="sc">$</span>d), <span class="at">sdev =</span> svdfit<span class="sc">$</span>d)</span>
-<span id="cb1-22"><a href="#cb1-22" tabindex="-1"></a></span>
-<span id="cb1-23"><a href="#cb1-23" tabindex="-1"></a><span class="co"># Generate new data to project onto the same subspace as the original data</span></span>
-<span id="cb1-24"><a href="#cb1-24" tabindex="-1"></a>new_data <span class="ot">&lt;-</span> <span class="fu">matrix</span>(<span class="fu">rnorm</span>(<span class="dv">5</span> <span class="sc">*</span> <span class="dv">20</span>), <span class="dv">5</span>, <span class="dv">20</span>)</span>
-<span id="cb1-25"><a href="#cb1-25" tabindex="-1"></a></span>
-<span id="cb1-26"><a href="#cb1-26" tabindex="-1"></a>projected_data <span class="ot">&lt;-</span> <span class="fu">project</span>(p, new_data)</span>
-<span id="cb1-27"><a href="#cb1-27" tabindex="-1"></a><span class="fu">print</span>(projected_data)</span>
-<span id="cb1-28"><a href="#cb1-28" tabindex="-1"></a><span class="co">#&gt;            [,1]       [,2]       [,3]       [,4]         [,5]       [,6]</span></span>
-<span id="cb1-29"><a href="#cb1-29" tabindex="-1"></a><span class="co">#&gt; [1,] -0.7864046 -0.4800612 -0.8865129 -0.2262336  0.678323845  2.3448302</span></span>
-<span id="cb1-30"><a href="#cb1-30" tabindex="-1"></a><span class="co">#&gt; [2,] -0.1325076  1.3903017 -1.5064698  1.2550899  0.673332975  0.5718498</span></span>
-<span id="cb1-31"><a href="#cb1-31" tabindex="-1"></a><span class="co">#&gt; [3,]  0.2864814 -0.2701905 -0.8181929 -0.8490030  0.006430116 -1.2933359</span></span>
-<span id="cb1-32"><a href="#cb1-32" tabindex="-1"></a><span class="co">#&gt; [4,]  1.1311516  0.2891873 -1.0273319 -1.7338016  2.030170740 -2.8299146</span></span>
-<span id="cb1-33"><a href="#cb1-33" tabindex="-1"></a><span class="co">#&gt; [5,] -0.8503584  0.1281519 -0.3367642  1.1956792 -0.315282938  1.2275375</span></span>
-<span id="cb1-34"><a href="#cb1-34" tabindex="-1"></a><span class="co">#&gt;              [,7]       [,8]       [,9]      [,10]</span></span>
-<span id="cb1-35"><a href="#cb1-35" tabindex="-1"></a><span class="co">#&gt; [1,] -0.985947936 -0.3905921 -0.8155574  1.2573170</span></span>
-<span id="cb1-36"><a href="#cb1-36" tabindex="-1"></a><span class="co">#&gt; [2,] -0.006895692  1.5533483 -0.9853844  0.1021079</span></span>
-<span id="cb1-37"><a href="#cb1-37" tabindex="-1"></a><span class="co">#&gt; [3,] -1.018713344 -0.8993998  1.1744588  1.1175886</span></span>
-<span id="cb1-38"><a href="#cb1-38" tabindex="-1"></a><span class="co">#&gt; [4,] -0.520309205  0.8700092  0.5702875  0.1959549</span></span>
-<span id="cb1-39"><a href="#cb1-39" tabindex="-1"></a><span class="co">#&gt; [5,]  1.078096512  0.1897177 -0.9757569 -1.1833003</span></span></code></pre></div>
-<p>In the <code>multivarious</code> package, the
-<code>bi_projector</code> class allows you to project new variables into
-the subspace defined by the model. The <code>project_vars</code>
-function is a generic function that operates on an object of a class
-implementing the <code>project_vars</code> method, such as a
-<code>bi_projector</code> object. This function projects one or more
-variables onto a subspace, which can be computed for a biorthogonal
-decomposition like Singular Value Decomposition (SVD).</p>
-<p>Remember, given an original data matrix <span class="math inline">\(X\)</span>, the SVD of <span class="math inline">\(X\)</span> can be written as:</p>
-<p><span class="math display">\[
-X \approx USV^T
-\]</span></p>
-<p>Where <span class="math inline">\(U\)</span> contains the left
-singular vectors (scores), <span class="math inline">\(S\)</span> is a
-diagonal matrix containing the singular values, and <span class="math inline">\(V^T\)</span> contains the right singular vectors
-(components). When we have new variables (columns) that we want to
-project into the same subspace as the original data, we can use the
-<code>project_vars</code> function.</p>
+<div id="projecting-variables-project_vars" class="section level2">
+<h2>Projecting Variables (<code>project_vars</code>)</h2>
+<p>While <code>project()</code> operates on new samples (rows), the
+<code>bi_projector</code> also supports projecting new
+<em>variables</em> (columns) into the component space defined by the
+model’s scores (U vectors in SVD terms). This is done using
+<code>project_vars()</code>.</p>
+<div class="sourceCode" id="cb2"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb2-1"><a href="#cb2-1" tabindex="-1"></a><span class="co"># Using the &#39;fit&#39; object from the PCA example above</span></span>
+<span id="cb2-2"><a href="#cb2-2" tabindex="-1"></a></span>
+<span id="cb2-3"><a href="#cb2-3" tabindex="-1"></a><span class="co"># Create a new variable (column) with the same number of samples as original data</span></span>
+<span id="cb2-4"><a href="#cb2-4" tabindex="-1"></a><span class="fu">set.seed</span>(<span class="dv">456</span>)</span>
+<span id="cb2-5"><a href="#cb2-5" tabindex="-1"></a>new_variable <span class="ot">&lt;-</span> <span class="fu">rnorm</span>(<span class="fu">nrow</span>(X))</span>
+<span id="cb2-6"><a href="#cb2-6" tabindex="-1"></a></span>
+<span id="cb2-7"><a href="#cb2-7" tabindex="-1"></a><span class="co"># Project this new variable into the component space defined by the PCA scores (fit$s)</span></span>
+<span id="cb2-8"><a href="#cb2-8" tabindex="-1"></a><span class="co"># Result shows how the new variable relates to the principal components.</span></span>
+<span id="cb2-9"><a href="#cb2-9" tabindex="-1"></a>projected_variable_loadings <span class="ot">&lt;-</span> <span class="fu">project_vars</span>(fit, new_variable)</span>
+<span id="cb2-10"><a href="#cb2-10" tabindex="-1"></a><span class="fu">cat</span>(<span class="st">&quot;</span><span class="sc">\n</span><span class="st">Projection of new variable onto components:&quot;</span>, projected_variable_loadings, <span class="st">&quot;</span><span class="sc">\n</span><span class="st">&quot;</span>)</span>
+<span id="cb2-11"><a href="#cb2-11" tabindex="-1"></a><span class="co">#&gt; </span></span>
+<span id="cb2-12"><a href="#cb2-12" tabindex="-1"></a><span class="co">#&gt; Projection of new variable onto components: 0.0003082567 -0.0004245081 -0.0003111904</span></span></code></pre></div>
 </div>
-<div id="projecting-new-variables-onto-the-subspace" class="section level2">
-<h2>Projecting New Variables onto the Subspace</h2>
-<p>Let’s say we have a new data matrix <code>new_data</code> with the
-same number of rows as the original data. To project these new variables
-into the subspace, we can compute:</p>
-<p> = U^T </p>
-<p>The result is a matrix or vector of the projected variables in the
-subspace.</p>
-<p>Here’s an example of how you can use the <code>svd_wrapper</code>
-function in the <code>multivarious</code> package with the
-<code>iris</code> dataset to compute the SVD and project new variables
-into the subspace.</p>
-<p>First, let’s load the <code>iris</code> dataset and compute the SVD
-using the <code>svd_wrapper</code> function:</p>
-<div class="sourceCode" id="cb2"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb2-1"><a href="#cb2-1" tabindex="-1"></a><span class="co"># Load iris dataset and select the first four columns</span></span>
-<span id="cb2-2"><a href="#cb2-2" tabindex="-1"></a><span class="fu">data</span>(iris)</span>
-<span id="cb2-3"><a href="#cb2-3" tabindex="-1"></a>X <span class="ot">&lt;-</span> iris[, <span class="dv">1</span><span class="sc">:</span><span class="dv">4</span>]</span>
-<span id="cb2-4"><a href="#cb2-4" tabindex="-1"></a></span>
-<span id="cb2-5"><a href="#cb2-5" tabindex="-1"></a><span class="co"># Compute SVD using the base method and 3 components</span></span>
-<span id="cb2-6"><a href="#cb2-6" tabindex="-1"></a>fit <span class="ot">&lt;-</span> <span class="fu">svd_wrapper</span>(X, <span class="at">ncomp =</span> <span class="dv">3</span>, <span class="at">preproc =</span> <span class="fu">center</span>(), <span class="at">method =</span> <span class="st">&quot;base&quot;</span>)</span></code></pre></div>
-<p>Now, let’s assume we have a new data matrix <code>new_data</code>
-with the same number of rows as the original data. To project these new
-variables into the subspace, we can use the <code>project_vars</code>
-function:</p>
-<div class="sourceCode" id="cb3"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb3-1"><a href="#cb3-1" tabindex="-1"></a><span class="co"># Define new_data</span></span>
-<span id="cb3-2"><a href="#cb3-2" tabindex="-1"></a>new_data <span class="ot">&lt;-</span> <span class="fu">rnorm</span>(<span class="fu">nrow</span>(iris))</span>
-<span id="cb3-3"><a href="#cb3-3" tabindex="-1"></a></span>
-<span id="cb3-4"><a href="#cb3-4" tabindex="-1"></a><span class="co"># Project the new variables into the subspace</span></span>
-<span id="cb3-5"><a href="#cb3-5" tabindex="-1"></a>projected_vars <span class="ot">&lt;-</span> <span class="fu">project_vars</span>(fit, new_data)</span></code></pre></div>
-<p>This example demonstrates how to compute the SVD using the
-<code>svd_wrapper</code> function and project new variables into the
-subspace defined by the SVD using the <code>project_vars</code>
-function.</p>
+<div id="conclusion" class="section level2">
+<h2>Conclusion</h2>
+<p>The <code>multivarious</code> package provides a consistent and
+extensible framework for common dimensionality reduction and related
+linear transformation tasks. By leveraging the <code>bi_projector</code>
+class, it offers a unified API for fitting models, projecting new data,
+reconstruction, and accessing key model components. This simplifies
+workflows, promotes code reuse, and facilitates integration with
+pre-processing, model composition, and cross-validation tools within the
+package ecosystem.</p>
 </div>
 
 

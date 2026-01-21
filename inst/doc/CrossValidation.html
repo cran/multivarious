@@ -1,0 +1,857 @@
+<!DOCTYPE html>
+
+<html>
+
+<head>
+
+<meta charset="utf-8" />
+<meta name="generator" content="pandoc" />
+<meta http-equiv="X-UA-Compatible" content="IE=EDGE" />
+
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+
+
+
+<title>Cross-validation for Dimensionality Reduction</title>
+
+<script>// Pandoc 2.9 adds attributes on both header and div. We remove the former (to
+// be compatible with the behavior of Pandoc < 2.8).
+document.addEventListener('DOMContentLoaded', function(e) {
+  var hs = document.querySelectorAll("div.section[class*='level'] > :first-child");
+  var i, h, a;
+  for (i = 0; i < hs.length; i++) {
+    h = hs[i];
+    if (!/^h[1-6]$/i.test(h.tagName)) continue;  // it should be a header h1-h6
+    a = h.attributes;
+    while (a.length > 0) h.removeAttribute(a[0].name);
+  }
+});
+</script>
+
+<style type="text/css">
+code{white-space: pre-wrap;}
+span.smallcaps{font-variant: small-caps;}
+span.underline{text-decoration: underline;}
+div.column{display: inline-block; vertical-align: top; width: 50%;}
+div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+ul.task-list{list-style: none;}
+</style>
+
+
+
+<style type="text/css">
+code {
+white-space: pre;
+}
+.sourceCode {
+overflow: visible;
+}
+</style>
+<style type="text/css" data-origin="pandoc">
+html { -webkit-text-size-adjust: 100%; }
+pre > code.sourceCode { white-space: pre; position: relative; }
+pre > code.sourceCode > span { display: inline-block; line-height: 1.25; }
+pre > code.sourceCode > span:empty { height: 1.2em; }
+.sourceCode { overflow: visible; }
+code.sourceCode > span { color: inherit; text-decoration: inherit; }
+div.sourceCode { margin: 1em 0; }
+pre.sourceCode { margin: 0; }
+@media screen {
+div.sourceCode { overflow: auto; }
+}
+@media print {
+pre > code.sourceCode { white-space: pre-wrap; }
+pre > code.sourceCode > span { text-indent: -5em; padding-left: 5em; }
+}
+pre.numberSource code
+{ counter-reset: source-line 0; }
+pre.numberSource code > span
+{ position: relative; left: -4em; counter-increment: source-line; }
+pre.numberSource code > span > a:first-child::before
+{ content: counter(source-line);
+position: relative; left: -1em; text-align: right; vertical-align: baseline;
+border: none; display: inline-block;
+-webkit-touch-callout: none; -webkit-user-select: none;
+-khtml-user-select: none; -moz-user-select: none;
+-ms-user-select: none; user-select: none;
+padding: 0 4px; width: 4em;
+color: #aaaaaa;
+}
+pre.numberSource { margin-left: 3em; border-left: 1px solid #aaaaaa; padding-left: 4px; }
+div.sourceCode
+{ }
+@media screen {
+pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
+}
+code span.al { color: #ff0000; font-weight: bold; } 
+code span.an { color: #60a0b0; font-weight: bold; font-style: italic; } 
+code span.at { color: #7d9029; } 
+code span.bn { color: #40a070; } 
+code span.bu { color: #008000; } 
+code span.cf { color: #007020; font-weight: bold; } 
+code span.ch { color: #4070a0; } 
+code span.cn { color: #880000; } 
+code span.co { color: #60a0b0; font-style: italic; } 
+code span.cv { color: #60a0b0; font-weight: bold; font-style: italic; } 
+code span.do { color: #ba2121; font-style: italic; } 
+code span.dt { color: #902000; } 
+code span.dv { color: #40a070; } 
+code span.er { color: #ff0000; font-weight: bold; } 
+code span.ex { } 
+code span.fl { color: #40a070; } 
+code span.fu { color: #06287e; } 
+code span.im { color: #008000; font-weight: bold; } 
+code span.in { color: #60a0b0; font-weight: bold; font-style: italic; } 
+code span.kw { color: #007020; font-weight: bold; } 
+code span.op { color: #666666; } 
+code span.ot { color: #007020; } 
+code span.pp { color: #bc7a00; } 
+code span.sc { color: #4070a0; } 
+code span.ss { color: #bb6688; } 
+code span.st { color: #4070a0; } 
+code span.va { color: #19177c; } 
+code span.vs { color: #4070a0; } 
+code span.wa { color: #60a0b0; font-weight: bold; font-style: italic; } 
+</style>
+<script>
+// apply pandoc div.sourceCode style to pre.sourceCode instead
+(function() {
+  var sheets = document.styleSheets;
+  for (var i = 0; i < sheets.length; i++) {
+    if (sheets[i].ownerNode.dataset["origin"] !== "pandoc") continue;
+    try { var rules = sheets[i].cssRules; } catch (e) { continue; }
+    var j = 0;
+    while (j < rules.length) {
+      var rule = rules[j];
+      // check if there is a div.sourceCode rule
+      if (rule.type !== rule.STYLE_RULE || rule.selectorText !== "div.sourceCode") {
+        j++;
+        continue;
+      }
+      var style = rule.style.cssText;
+      // check if color or background-color is set
+      if (rule.style.color === '' && rule.style.backgroundColor === '') {
+        j++;
+        continue;
+      }
+      // replace div.sourceCode by a pre.sourceCode rule
+      sheets[i].deleteRule(j);
+      sheets[i].insertRule('pre.sourceCode{' + style + '}', j);
+    }
+  }
+})();
+</script>
+
+
+
+
+<style type="text/css">body {
+background-color: #fff;
+margin: 1em auto;
+max-width: 700px;
+overflow: visible;
+padding-left: 2em;
+padding-right: 2em;
+font-family: "Open Sans", "Helvetica Neue", Helvetica, Arial, sans-serif;
+font-size: 14px;
+line-height: 1.35;
+}
+#TOC {
+clear: both;
+margin: 0 0 10px 10px;
+padding: 4px;
+width: 400px;
+border: 1px solid #CCCCCC;
+border-radius: 5px;
+background-color: #f6f6f6;
+font-size: 13px;
+line-height: 1.3;
+}
+#TOC .toctitle {
+font-weight: bold;
+font-size: 15px;
+margin-left: 5px;
+}
+#TOC ul {
+padding-left: 40px;
+margin-left: -1.5em;
+margin-top: 5px;
+margin-bottom: 5px;
+}
+#TOC ul ul {
+margin-left: -2em;
+}
+#TOC li {
+line-height: 16px;
+}
+table {
+margin: 1em auto;
+border-width: 1px;
+border-color: #DDDDDD;
+border-style: outset;
+border-collapse: collapse;
+}
+table th {
+border-width: 2px;
+padding: 5px;
+border-style: inset;
+}
+table td {
+border-width: 1px;
+border-style: inset;
+line-height: 18px;
+padding: 5px 5px;
+}
+table, table th, table td {
+border-left-style: none;
+border-right-style: none;
+}
+table thead, table tr.even {
+background-color: #f7f7f7;
+}
+p {
+margin: 0.5em 0;
+}
+blockquote {
+background-color: #f6f6f6;
+padding: 0.25em 0.75em;
+}
+hr {
+border-style: solid;
+border: none;
+border-top: 1px solid #777;
+margin: 28px 0;
+}
+dl {
+margin-left: 0;
+}
+dl dd {
+margin-bottom: 13px;
+margin-left: 13px;
+}
+dl dt {
+font-weight: bold;
+}
+ul {
+margin-top: 0;
+}
+ul li {
+list-style: circle outside;
+}
+ul ul {
+margin-bottom: 0;
+}
+pre, code {
+background-color: #f7f7f7;
+border-radius: 3px;
+color: #333;
+white-space: pre-wrap; 
+}
+pre {
+border-radius: 3px;
+margin: 5px 0px 10px 0px;
+padding: 10px;
+}
+pre:not([class]) {
+background-color: #f7f7f7;
+}
+code {
+font-family: Consolas, Monaco, 'Courier New', monospace;
+font-size: 85%;
+}
+p > code, li > code {
+padding: 2px 0px;
+}
+div.figure {
+text-align: center;
+}
+img {
+background-color: #FFFFFF;
+padding: 2px;
+border: 1px solid #DDDDDD;
+border-radius: 3px;
+border: 1px solid #CCCCCC;
+margin: 0 5px;
+}
+h1 {
+margin-top: 0;
+font-size: 35px;
+line-height: 40px;
+}
+h2 {
+border-bottom: 4px solid #f7f7f7;
+padding-top: 10px;
+padding-bottom: 2px;
+font-size: 145%;
+}
+h3 {
+border-bottom: 2px solid #f7f7f7;
+padding-top: 10px;
+font-size: 120%;
+}
+h4 {
+border-bottom: 1px solid #f7f7f7;
+margin-left: 8px;
+font-size: 105%;
+}
+h5, h6 {
+border-bottom: 1px solid #ccc;
+font-size: 105%;
+}
+a {
+color: #0033dd;
+text-decoration: none;
+}
+a:hover {
+color: #6666ff; }
+a:visited {
+color: #800080; }
+a:visited:hover {
+color: #BB00BB; }
+a[href^="http:"] {
+text-decoration: underline; }
+a[href^="https:"] {
+text-decoration: underline; }
+
+code > span.kw { color: #555; font-weight: bold; } 
+code > span.dt { color: #902000; } 
+code > span.dv { color: #40a070; } 
+code > span.bn { color: #d14; } 
+code > span.fl { color: #d14; } 
+code > span.ch { color: #d14; } 
+code > span.st { color: #d14; } 
+code > span.co { color: #888888; font-style: italic; } 
+code > span.ot { color: #007020; } 
+code > span.al { color: #ff0000; font-weight: bold; } 
+code > span.fu { color: #900; font-weight: bold; } 
+code > span.er { color: #a61717; background-color: #e3d2d2; } 
+</style>
+
+
+
+
+</head>
+
+<body>
+
+
+
+
+<h1 class="title toc-ignore">Cross-validation for Dimensionality
+Reduction</h1>
+
+
+
+<div id="why-cross-validate-dimensionality-reduction" class="section level2">
+<h2>Why Cross-validate Dimensionality Reduction?</h2>
+<p>When using PCA or other dimensionality reduction methods, we often
+face questions like:</p>
+<ul>
+<li>How many components should I keep?</li>
+<li>How well does my model generalize to new data?</li>
+<li>Which preprocessing strategy works best?</li>
+</ul>
+<p>Cross-validation provides principled answers by testing how well
+models trained on one subset of data perform on held-out data.</p>
+</div>
+<div id="quick-example-finding-the-right-number-of-components" class="section level2">
+<h2>Quick Example: Finding the Right Number of Components</h2>
+<p>Let’s use the iris dataset to find the optimal number of PCA
+components via reconstruction error.</p>
+<div class="sourceCode" id="cb1"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb1-1"><a href="#cb1-1" tabindex="-1"></a><span class="fu">set.seed</span>(<span class="dv">123</span>)</span>
+<span id="cb1-2"><a href="#cb1-2" tabindex="-1"></a>X <span class="ot">&lt;-</span> <span class="fu">as.matrix</span>(iris[, <span class="dv">1</span><span class="sc">:</span><span class="dv">4</span>])  <span class="co"># 150 samples x 4 features</span></span>
+<span id="cb1-3"><a href="#cb1-3" tabindex="-1"></a></span>
+<span id="cb1-4"><a href="#cb1-4" tabindex="-1"></a><span class="co"># Create 5-fold cross-validation splits</span></span>
+<span id="cb1-5"><a href="#cb1-5" tabindex="-1"></a>K <span class="ot">&lt;-</span> <span class="dv">5</span></span>
+<span id="cb1-6"><a href="#cb1-6" tabindex="-1"></a>fold_ids <span class="ot">&lt;-</span> <span class="fu">sample</span>(<span class="fu">rep</span>(<span class="dv">1</span><span class="sc">:</span>K, <span class="at">length.out =</span> <span class="fu">nrow</span>(X)))</span>
+<span id="cb1-7"><a href="#cb1-7" tabindex="-1"></a>folds <span class="ot">&lt;-</span> <span class="fu">lapply</span>(<span class="dv">1</span><span class="sc">:</span>K, <span class="cf">function</span>(k) <span class="fu">list</span>(</span>
+<span id="cb1-8"><a href="#cb1-8" tabindex="-1"></a>  <span class="at">train =</span> <span class="fu">which</span>(fold_ids <span class="sc">!=</span> k),</span>
+<span id="cb1-9"><a href="#cb1-9" tabindex="-1"></a>  <span class="at">test  =</span> <span class="fu">which</span>(fold_ids <span class="sc">==</span> k)</span>
+<span id="cb1-10"><a href="#cb1-10" tabindex="-1"></a>))</span></code></pre></div>
+<p>Define the fitting and measurement functions. The measurement
+function projects test data, reconstructs it, and computes RMSE:</p>
+<div class="sourceCode" id="cb2"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb2-1"><a href="#cb2-1" tabindex="-1"></a>fit_pca <span class="ot">&lt;-</span> <span class="cf">function</span>(train_data, ncomp) {</span>
+<span id="cb2-2"><a href="#cb2-2" tabindex="-1"></a>  <span class="fu">pca</span>(train_data, <span class="at">ncomp =</span> ncomp, <span class="at">preproc =</span> <span class="fu">center</span>())</span>
+<span id="cb2-3"><a href="#cb2-3" tabindex="-1"></a>}</span>
+<span id="cb2-4"><a href="#cb2-4" tabindex="-1"></a></span>
+<span id="cb2-5"><a href="#cb2-5" tabindex="-1"></a>measure_reconstruction <span class="ot">&lt;-</span> <span class="cf">function</span>(model, test_data) {</span>
+<span id="cb2-6"><a href="#cb2-6" tabindex="-1"></a>  <span class="co"># Project test data to score space</span></span>
+<span id="cb2-7"><a href="#cb2-7" tabindex="-1"></a> scores <span class="ot">&lt;-</span> <span class="fu">project</span>(model, test_data)</span>
+<span id="cb2-8"><a href="#cb2-8" tabindex="-1"></a></span>
+<span id="cb2-9"><a href="#cb2-9" tabindex="-1"></a>  <span class="co"># Reconstruct: scores %*% t(loadings), then reverse centering</span></span>
+<span id="cb2-10"><a href="#cb2-10" tabindex="-1"></a> recon <span class="ot">&lt;-</span> scores <span class="sc">%*%</span> <span class="fu">t</span>(model<span class="sc">$</span>v)</span>
+<span id="cb2-11"><a href="#cb2-11" tabindex="-1"></a>  recon <span class="ot">&lt;-</span> <span class="fu">inverse_transform</span>(model<span class="sc">$</span>preproc, recon)</span>
+<span id="cb2-12"><a href="#cb2-12" tabindex="-1"></a></span>
+<span id="cb2-13"><a href="#cb2-13" tabindex="-1"></a>  <span class="co"># Compute RMSE</span></span>
+<span id="cb2-14"><a href="#cb2-14" tabindex="-1"></a>  rmse <span class="ot">&lt;-</span> <span class="fu">sqrt</span>(<span class="fu">mean</span>((test_data <span class="sc">-</span> recon)<span class="sc">^</span><span class="dv">2</span>))</span>
+<span id="cb2-15"><a href="#cb2-15" tabindex="-1"></a>  tibble<span class="sc">::</span><span class="fu">tibble</span>(<span class="at">rmse =</span> rmse)</span>
+<span id="cb2-16"><a href="#cb2-16" tabindex="-1"></a>}</span></code></pre></div>
+<p>Now run cross-validation for 1–4 components:</p>
+<div class="sourceCode" id="cb3"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb3-1"><a href="#cb3-1" tabindex="-1"></a>results_list <span class="ot">&lt;-</span> <span class="fu">lapply</span>(<span class="dv">1</span><span class="sc">:</span><span class="dv">4</span>, <span class="cf">function</span>(nc) {</span>
+<span id="cb3-2"><a href="#cb3-2" tabindex="-1"></a>  cv_res <span class="ot">&lt;-</span> <span class="fu">cv_generic</span>(</span>
+<span id="cb3-3"><a href="#cb3-3" tabindex="-1"></a>    <span class="at">data =</span> X,</span>
+<span id="cb3-4"><a href="#cb3-4" tabindex="-1"></a>    <span class="at">folds =</span> folds,</span>
+<span id="cb3-5"><a href="#cb3-5" tabindex="-1"></a>    <span class="at">.fit_fun =</span> fit_pca,</span>
+<span id="cb3-6"><a href="#cb3-6" tabindex="-1"></a>    <span class="at">.measure_fun =</span> measure_reconstruction,</span>
+<span id="cb3-7"><a href="#cb3-7" tabindex="-1"></a>    <span class="at">fit_args =</span> <span class="fu">list</span>(<span class="at">ncomp =</span> nc),</span>
+<span id="cb3-8"><a href="#cb3-8" tabindex="-1"></a>    <span class="at">backend =</span> <span class="st">&quot;serial&quot;</span></span>
+<span id="cb3-9"><a href="#cb3-9" tabindex="-1"></a>  )</span>
+<span id="cb3-10"><a href="#cb3-10" tabindex="-1"></a>  <span class="co"># Extract RMSE from each fold and average</span></span>
+<span id="cb3-11"><a href="#cb3-11" tabindex="-1"></a>  fold_rmse <span class="ot">&lt;-</span> <span class="fu">sapply</span>(cv_res<span class="sc">$</span>metrics, <span class="cf">function</span>(m) m<span class="sc">$</span>rmse)</span>
+<span id="cb3-12"><a href="#cb3-12" tabindex="-1"></a>  <span class="fu">data.frame</span>(<span class="at">ncomp =</span> nc, <span class="at">rmse =</span> <span class="fu">mean</span>(fold_rmse))</span>
+<span id="cb3-13"><a href="#cb3-13" tabindex="-1"></a>})</span>
+<span id="cb3-14"><a href="#cb3-14" tabindex="-1"></a></span>
+<span id="cb3-15"><a href="#cb3-15" tabindex="-1"></a>cv_results <span class="ot">&lt;-</span> <span class="fu">do.call</span>(rbind, results_list)</span>
+<span id="cb3-16"><a href="#cb3-16" tabindex="-1"></a><span class="fu">print</span>(cv_results)</span>
+<span id="cb3-17"><a href="#cb3-17" tabindex="-1"></a><span class="co">#&gt;   ncomp         rmse</span></span>
+<span id="cb3-18"><a href="#cb3-18" tabindex="-1"></a><span class="co">#&gt; 1     1 2.949027e-01</span></span>
+<span id="cb3-19"><a href="#cb3-19" tabindex="-1"></a><span class="co">#&gt; 2     2 1.603380e-01</span></span>
+<span id="cb3-20"><a href="#cb3-20" tabindex="-1"></a><span class="co">#&gt; 3     3 7.673558e-02</span></span>
+<span id="cb3-21"><a href="#cb3-21" tabindex="-1"></a><span class="co">#&gt; 4     4 4.440794e-16</span></span></code></pre></div>
+<p>Two components capture most of the structure; additional components
+yield diminishing returns.</p>
+</div>
+<div id="understanding-the-output" class="section level2">
+<h2>Understanding the Output</h2>
+<p>The <code>cv_generic()</code> function returns a tibble with three
+columns:</p>
+<ul>
+<li><strong>fold</strong>: The fold number (integer)</li>
+<li><strong>model</strong>: The fitted model for that fold (list
+column)</li>
+<li><strong>metrics</strong>: Performance metrics for that fold (list
+column of tibbles)</li>
+</ul>
+<div class="sourceCode" id="cb4"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb4-1"><a href="#cb4-1" tabindex="-1"></a><span class="co"># Run CV once to inspect the structure</span></span>
+<span id="cb4-2"><a href="#cb4-2" tabindex="-1"></a>cv_example <span class="ot">&lt;-</span> <span class="fu">cv_generic</span>(</span>
+<span id="cb4-3"><a href="#cb4-3" tabindex="-1"></a>  X, folds,</span>
+<span id="cb4-4"><a href="#cb4-4" tabindex="-1"></a>  <span class="at">.fit_fun =</span> fit_pca,</span>
+<span id="cb4-5"><a href="#cb4-5" tabindex="-1"></a>  <span class="at">.measure_fun =</span> measure_reconstruction,</span>
+<span id="cb4-6"><a href="#cb4-6" tabindex="-1"></a>  <span class="at">fit_args =</span> <span class="fu">list</span>(<span class="at">ncomp =</span> <span class="dv">2</span>)</span>
+<span id="cb4-7"><a href="#cb4-7" tabindex="-1"></a>)</span>
+<span id="cb4-8"><a href="#cb4-8" tabindex="-1"></a></span>
+<span id="cb4-9"><a href="#cb4-9" tabindex="-1"></a><span class="co"># Structure overview</span></span>
+<span id="cb4-10"><a href="#cb4-10" tabindex="-1"></a><span class="fu">str</span>(cv_example, <span class="at">max.level =</span> <span class="dv">1</span>)</span>
+<span id="cb4-11"><a href="#cb4-11" tabindex="-1"></a><span class="co">#&gt; tibble [5 × 3] (S3: tbl_df/tbl/data.frame)</span></span>
+<span id="cb4-12"><a href="#cb4-12" tabindex="-1"></a></span>
+<span id="cb4-13"><a href="#cb4-13" tabindex="-1"></a><span class="co"># Extract metrics from all folds</span></span>
+<span id="cb4-14"><a href="#cb4-14" tabindex="-1"></a>all_metrics <span class="ot">&lt;-</span> dplyr<span class="sc">::</span><span class="fu">bind_rows</span>(cv_example<span class="sc">$</span>metrics)</span>
+<span id="cb4-15"><a href="#cb4-15" tabindex="-1"></a><span class="fu">print</span>(all_metrics)</span>
+<span id="cb4-16"><a href="#cb4-16" tabindex="-1"></a><span class="co">#&gt; # A tibble: 5 × 1</span></span>
+<span id="cb4-17"><a href="#cb4-17" tabindex="-1"></a><span class="co">#&gt;    rmse</span></span>
+<span id="cb4-18"><a href="#cb4-18" tabindex="-1"></a><span class="co">#&gt;   &lt;dbl&gt;</span></span>
+<span id="cb4-19"><a href="#cb4-19" tabindex="-1"></a><span class="co">#&gt; 1 0.157</span></span>
+<span id="cb4-20"><a href="#cb4-20" tabindex="-1"></a><span class="co">#&gt; 2 0.135</span></span>
+<span id="cb4-21"><a href="#cb4-21" tabindex="-1"></a><span class="co">#&gt; 3 0.181</span></span>
+<span id="cb4-22"><a href="#cb4-22" tabindex="-1"></a><span class="co">#&gt; 4 0.132</span></span>
+<span id="cb4-23"><a href="#cb4-23" tabindex="-1"></a><span class="co">#&gt; 5 0.197</span></span></code></pre></div>
+</div>
+<div id="custom-cross-validation-scenarios" class="section level2">
+<h2>Custom Cross-validation Scenarios</h2>
+<div id="scenario-1-comparing-preprocessing-strategies" class="section level3">
+<h3>Scenario 1: Comparing Preprocessing Strategies</h3>
+<p>Use <code>cv_generic()</code> to compare centering alone versus
+z-scoring:</p>
+<div class="sourceCode" id="cb5"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb5-1"><a href="#cb5-1" tabindex="-1"></a>prep_center <span class="ot">&lt;-</span> <span class="fu">center</span>()</span>
+<span id="cb5-2"><a href="#cb5-2" tabindex="-1"></a>prep_zscore <span class="ot">&lt;-</span> <span class="fu">colscale</span>(<span class="fu">center</span>(), <span class="at">type =</span> <span class="st">&quot;z&quot;</span>)</span>
+<span id="cb5-3"><a href="#cb5-3" tabindex="-1"></a></span>
+<span id="cb5-4"><a href="#cb5-4" tabindex="-1"></a>fit_with_prep <span class="ot">&lt;-</span> <span class="cf">function</span>(train_data, ncomp, preproc) {</span>
+<span id="cb5-5"><a href="#cb5-5" tabindex="-1"></a>  <span class="fu">pca</span>(train_data, <span class="at">ncomp =</span> ncomp, <span class="at">preproc =</span> preproc)</span>
+<span id="cb5-6"><a href="#cb5-6" tabindex="-1"></a>}</span>
+<span id="cb5-7"><a href="#cb5-7" tabindex="-1"></a></span>
+<span id="cb5-8"><a href="#cb5-8" tabindex="-1"></a><span class="co"># Compare both strategies with 3 components</span></span>
+<span id="cb5-9"><a href="#cb5-9" tabindex="-1"></a>cv_center <span class="ot">&lt;-</span> <span class="fu">cv_generic</span>(</span>
+<span id="cb5-10"><a href="#cb5-10" tabindex="-1"></a>  X, folds,</span>
+<span id="cb5-11"><a href="#cb5-11" tabindex="-1"></a>  <span class="at">.fit_fun =</span> fit_with_prep,</span>
+<span id="cb5-12"><a href="#cb5-12" tabindex="-1"></a>  <span class="at">.measure_fun =</span> measure_reconstruction,</span>
+<span id="cb5-13"><a href="#cb5-13" tabindex="-1"></a>  <span class="at">fit_args =</span> <span class="fu">list</span>(<span class="at">ncomp =</span> <span class="dv">3</span>, <span class="at">preproc =</span> prep_center)</span>
+<span id="cb5-14"><a href="#cb5-14" tabindex="-1"></a>)</span>
+<span id="cb5-15"><a href="#cb5-15" tabindex="-1"></a></span>
+<span id="cb5-16"><a href="#cb5-16" tabindex="-1"></a>cv_zscore <span class="ot">&lt;-</span> <span class="fu">cv_generic</span>(</span>
+<span id="cb5-17"><a href="#cb5-17" tabindex="-1"></a>  X, folds,</span>
+<span id="cb5-18"><a href="#cb5-18" tabindex="-1"></a>  <span class="at">.fit_fun =</span> fit_with_prep,</span>
+<span id="cb5-19"><a href="#cb5-19" tabindex="-1"></a>  <span class="at">.measure_fun =</span> measure_reconstruction,</span>
+<span id="cb5-20"><a href="#cb5-20" tabindex="-1"></a>  <span class="at">fit_args =</span> <span class="fu">list</span>(<span class="at">ncomp =</span> <span class="dv">3</span>, <span class="at">preproc =</span> prep_zscore)</span>
+<span id="cb5-21"><a href="#cb5-21" tabindex="-1"></a>)</span>
+<span id="cb5-22"><a href="#cb5-22" tabindex="-1"></a></span>
+<span id="cb5-23"><a href="#cb5-23" tabindex="-1"></a>rmse_center <span class="ot">&lt;-</span> <span class="fu">mean</span>(<span class="fu">sapply</span>(cv_center<span class="sc">$</span>metrics, <span class="st">`</span><span class="at">[[</span><span class="st">`</span>, <span class="st">&quot;rmse&quot;</span>))</span>
+<span id="cb5-24"><a href="#cb5-24" tabindex="-1"></a>rmse_zscore <span class="ot">&lt;-</span> <span class="fu">mean</span>(<span class="fu">sapply</span>(cv_zscore<span class="sc">$</span>metrics, <span class="st">`</span><span class="at">[[</span><span class="st">`</span>, <span class="st">&quot;rmse&quot;</span>))</span>
+<span id="cb5-25"><a href="#cb5-25" tabindex="-1"></a></span>
+<span id="cb5-26"><a href="#cb5-26" tabindex="-1"></a><span class="fu">cat</span>(<span class="st">&quot;Center only - RMSE:&quot;</span>, <span class="fu">round</span>(rmse_center, <span class="dv">4</span>), <span class="st">&quot;</span><span class="sc">\n</span><span class="st">&quot;</span>)</span>
+<span id="cb5-27"><a href="#cb5-27" tabindex="-1"></a><span class="co">#&gt; Center only - RMSE: 0.0764</span></span>
+<span id="cb5-28"><a href="#cb5-28" tabindex="-1"></a><span class="fu">cat</span>(<span class="st">&quot;Z-score     - RMSE:&quot;</span>, <span class="fu">round</span>(rmse_zscore, <span class="dv">4</span>), <span class="st">&quot;</span><span class="sc">\n</span><span class="st">&quot;</span>)</span>
+<span id="cb5-29"><a href="#cb5-29" tabindex="-1"></a><span class="co">#&gt; Z-score     - RMSE: 0.1053</span></span></code></pre></div>
+<p>For iris, centering alone performs slightly better since the
+variables are already on similar scales.</p>
+</div>
+<div id="scenario-2-parallel-cross-validation" class="section level3">
+<h3>Scenario 2: Parallel Cross-validation</h3>
+<p>For larger datasets, run folds in parallel:</p>
+<div class="sourceCode" id="cb6"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb6-1"><a href="#cb6-1" tabindex="-1"></a><span class="co"># Setup parallel backend</span></span>
+<span id="cb6-2"><a href="#cb6-2" tabindex="-1"></a><span class="fu">library</span>(future)</span>
+<span id="cb6-3"><a href="#cb6-3" tabindex="-1"></a><span class="fu">plan</span>(multisession, <span class="at">workers =</span> <span class="dv">4</span>)</span>
+<span id="cb6-4"><a href="#cb6-4" tabindex="-1"></a></span>
+<span id="cb6-5"><a href="#cb6-5" tabindex="-1"></a><span class="co"># Run CV in parallel</span></span>
+<span id="cb6-6"><a href="#cb6-6" tabindex="-1"></a>cv_parallel <span class="ot">&lt;-</span> <span class="fu">cv_generic</span>(</span>
+<span id="cb6-7"><a href="#cb6-7" tabindex="-1"></a>  X,</span>
+<span id="cb6-8"><a href="#cb6-8" tabindex="-1"></a>  <span class="at">folds =</span> folds,</span>
+<span id="cb6-9"><a href="#cb6-9" tabindex="-1"></a>  <span class="at">.fit_fun =</span> fit_pca,</span>
+<span id="cb6-10"><a href="#cb6-10" tabindex="-1"></a>  <span class="at">.measure_fun =</span> measure_pca,</span>
+<span id="cb6-11"><a href="#cb6-11" tabindex="-1"></a>  <span class="at">fit_args =</span> <span class="fu">list</span>(<span class="at">ncomp =</span> <span class="dv">4</span>),</span>
+<span id="cb6-12"><a href="#cb6-12" tabindex="-1"></a>  <span class="at">backend =</span> <span class="st">&quot;future&quot;</span>  <span class="co"># Use parallel backend</span></span>
+<span id="cb6-13"><a href="#cb6-13" tabindex="-1"></a>)</span>
+<span id="cb6-14"><a href="#cb6-14" tabindex="-1"></a></span>
+<span id="cb6-15"><a href="#cb6-15" tabindex="-1"></a><span class="co"># Don&#39;t forget to reset</span></span>
+<span id="cb6-16"><a href="#cb6-16" tabindex="-1"></a><span class="fu">plan</span>(sequential)</span></code></pre></div>
+</div>
+</div>
+<div id="computing-multiple-metrics" class="section level2">
+<h2>Computing Multiple Metrics</h2>
+<p>You can return multiple metrics from the measurement function:</p>
+<div class="sourceCode" id="cb7"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb7-1"><a href="#cb7-1" tabindex="-1"></a>measure_multi <span class="ot">&lt;-</span> <span class="cf">function</span>(model, test_data) {</span>
+<span id="cb7-2"><a href="#cb7-2" tabindex="-1"></a>  scores <span class="ot">&lt;-</span> <span class="fu">project</span>(model, test_data)</span>
+<span id="cb7-3"><a href="#cb7-3" tabindex="-1"></a>  recon <span class="ot">&lt;-</span> scores <span class="sc">%*%</span> <span class="fu">t</span>(model<span class="sc">$</span>v)</span>
+<span id="cb7-4"><a href="#cb7-4" tabindex="-1"></a>  recon <span class="ot">&lt;-</span> <span class="fu">inverse_transform</span>(model<span class="sc">$</span>preproc, recon)</span>
+<span id="cb7-5"><a href="#cb7-5" tabindex="-1"></a></span>
+<span id="cb7-6"><a href="#cb7-6" tabindex="-1"></a>  residuals <span class="ot">&lt;-</span> test_data <span class="sc">-</span> recon</span>
+<span id="cb7-7"><a href="#cb7-7" tabindex="-1"></a>  ss_res <span class="ot">&lt;-</span> <span class="fu">sum</span>(residuals<span class="sc">^</span><span class="dv">2</span>)</span>
+<span id="cb7-8"><a href="#cb7-8" tabindex="-1"></a>  ss_tot <span class="ot">&lt;-</span> <span class="fu">sum</span>((test_data <span class="sc">-</span> <span class="fu">mean</span>(test_data))<span class="sc">^</span><span class="dv">2</span>)</span>
+<span id="cb7-9"><a href="#cb7-9" tabindex="-1"></a></span>
+<span id="cb7-10"><a href="#cb7-10" tabindex="-1"></a>  tibble<span class="sc">::</span><span class="fu">tibble</span>(</span>
+<span id="cb7-11"><a href="#cb7-11" tabindex="-1"></a>    <span class="at">rmse =</span> <span class="fu">sqrt</span>(<span class="fu">mean</span>(residuals<span class="sc">^</span><span class="dv">2</span>)),</span>
+<span id="cb7-12"><a href="#cb7-12" tabindex="-1"></a>    <span class="at">mae  =</span> <span class="fu">mean</span>(<span class="fu">abs</span>(residuals)),</span>
+<span id="cb7-13"><a href="#cb7-13" tabindex="-1"></a>    <span class="at">r2   =</span> <span class="dv">1</span> <span class="sc">-</span> ss_res <span class="sc">/</span> ss_tot</span>
+<span id="cb7-14"><a href="#cb7-14" tabindex="-1"></a>  )</span>
+<span id="cb7-15"><a href="#cb7-15" tabindex="-1"></a>}</span>
+<span id="cb7-16"><a href="#cb7-16" tabindex="-1"></a></span>
+<span id="cb7-17"><a href="#cb7-17" tabindex="-1"></a>cv_multi <span class="ot">&lt;-</span> <span class="fu">cv_generic</span>(</span>
+<span id="cb7-18"><a href="#cb7-18" tabindex="-1"></a>  X, folds,</span>
+<span id="cb7-19"><a href="#cb7-19" tabindex="-1"></a>  <span class="at">.fit_fun =</span> fit_pca,</span>
+<span id="cb7-20"><a href="#cb7-20" tabindex="-1"></a>  <span class="at">.measure_fun =</span> measure_multi,</span>
+<span id="cb7-21"><a href="#cb7-21" tabindex="-1"></a>  <span class="at">fit_args =</span> <span class="fu">list</span>(<span class="at">ncomp =</span> <span class="dv">3</span>)</span>
+<span id="cb7-22"><a href="#cb7-22" tabindex="-1"></a>)</span>
+<span id="cb7-23"><a href="#cb7-23" tabindex="-1"></a></span>
+<span id="cb7-24"><a href="#cb7-24" tabindex="-1"></a>all_metrics <span class="ot">&lt;-</span> dplyr<span class="sc">::</span><span class="fu">bind_rows</span>(cv_multi<span class="sc">$</span>metrics)</span>
+<span id="cb7-25"><a href="#cb7-25" tabindex="-1"></a><span class="fu">print</span>(all_metrics)</span>
+<span id="cb7-26"><a href="#cb7-26" tabindex="-1"></a><span class="co">#&gt; # A tibble: 5 × 3</span></span>
+<span id="cb7-27"><a href="#cb7-27" tabindex="-1"></a><span class="co">#&gt;     rmse    mae    r2</span></span>
+<span id="cb7-28"><a href="#cb7-28" tabindex="-1"></a><span class="co">#&gt;    &lt;dbl&gt;  &lt;dbl&gt; &lt;dbl&gt;</span></span>
+<span id="cb7-29"><a href="#cb7-29" tabindex="-1"></a><span class="co">#&gt; 1 0.0690 0.0475 0.999</span></span>
+<span id="cb7-30"><a href="#cb7-30" tabindex="-1"></a><span class="co">#&gt; 2 0.0603 0.0431 0.999</span></span>
+<span id="cb7-31"><a href="#cb7-31" tabindex="-1"></a><span class="co">#&gt; 3 0.106  0.0716 0.997</span></span>
+<span id="cb7-32"><a href="#cb7-32" tabindex="-1"></a><span class="co">#&gt; 4 0.0624 0.0453 0.999</span></span>
+<span id="cb7-33"><a href="#cb7-33" tabindex="-1"></a><span class="co">#&gt; 5 0.0863 0.0680 0.998</span></span>
+<span id="cb7-34"><a href="#cb7-34" tabindex="-1"></a></span>
+<span id="cb7-35"><a href="#cb7-35" tabindex="-1"></a><span class="fu">cat</span>(<span class="st">&quot;</span><span class="sc">\n</span><span class="st">Mean across folds:</span><span class="sc">\n</span><span class="st">&quot;</span>)</span>
+<span id="cb7-36"><a href="#cb7-36" tabindex="-1"></a><span class="co">#&gt; </span></span>
+<span id="cb7-37"><a href="#cb7-37" tabindex="-1"></a><span class="co">#&gt; Mean across folds:</span></span>
+<span id="cb7-38"><a href="#cb7-38" tabindex="-1"></a><span class="fu">cat</span>(<span class="st">&quot;RMSE:&quot;</span>, <span class="fu">round</span>(<span class="fu">mean</span>(all_metrics<span class="sc">$</span>rmse), <span class="dv">4</span>), <span class="st">&quot;</span><span class="sc">\n</span><span class="st">&quot;</span>)</span>
+<span id="cb7-39"><a href="#cb7-39" tabindex="-1"></a><span class="co">#&gt; RMSE: 0.0767</span></span>
+<span id="cb7-40"><a href="#cb7-40" tabindex="-1"></a><span class="fu">cat</span>(<span class="st">&quot;MAE: &quot;</span>, <span class="fu">round</span>(<span class="fu">mean</span>(all_metrics<span class="sc">$</span>mae), <span class="dv">4</span>), <span class="st">&quot;</span><span class="sc">\n</span><span class="st">&quot;</span>)</span>
+<span id="cb7-41"><a href="#cb7-41" tabindex="-1"></a><span class="co">#&gt; MAE:  0.0551</span></span>
+<span id="cb7-42"><a href="#cb7-42" tabindex="-1"></a><span class="fu">cat</span>(<span class="st">&quot;R2:  &quot;</span>, <span class="fu">round</span>(<span class="fu">mean</span>(all_metrics<span class="sc">$</span>r2), <span class="dv">4</span>), <span class="st">&quot;</span><span class="sc">\n</span><span class="st">&quot;</span>)</span>
+<span id="cb7-43"><a href="#cb7-43" tabindex="-1"></a><span class="co">#&gt; R2:   0.9984</span></span></code></pre></div>
+<table>
+<colgroup>
+<col width="21%" />
+<col width="35%" />
+<col width="43%" />
+</colgroup>
+<thead>
+<tr class="header">
+<th>Metric</th>
+<th>Description</th>
+<th>Interpretation</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>RMSE</td>
+<td>Root mean squared error</td>
+<td>Lower is better; in original units</td>
+</tr>
+<tr class="even">
+<td>MAE</td>
+<td>Mean absolute error</td>
+<td>Less sensitive to outliers than RMSE</td>
+</tr>
+<tr class="odd">
+<td>R²</td>
+<td>Coefficient of determination</td>
+<td>Proportion of variance explained (1 = perfect)</td>
+</tr>
+</tbody>
+</table>
+</div>
+<div id="tips-for-effective-cross-validation" class="section level2">
+<h2>Tips for Effective Cross-validation</h2>
+<div id="preprocessing-inside-the-loop" class="section level3">
+<h3>1. Preprocessing Inside the Loop</h3>
+<p>Always fit preprocessing parameters inside the CV loop:</p>
+<div class="sourceCode" id="cb8"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb8-1"><a href="#cb8-1" tabindex="-1"></a><span class="co"># WRONG: Preprocessing outside CV leaks information</span></span>
+<span id="cb8-2"><a href="#cb8-2" tabindex="-1"></a>X_scaled <span class="ot">&lt;-</span> <span class="fu">scale</span>(X)  <span class="co"># Uses mean/sd from ALL samples including test!</span></span>
+<span id="cb8-3"><a href="#cb8-3" tabindex="-1"></a>cv_wrong <span class="ot">&lt;-</span> <span class="fu">cv_generic</span>(X_scaled, folds, ...)</span>
+<span id="cb8-4"><a href="#cb8-4" tabindex="-1"></a></span>
+<span id="cb8-5"><a href="#cb8-5" tabindex="-1"></a><span class="co"># RIGHT: Let the model handle preprocessing internally</span></span>
+<span id="cb8-6"><a href="#cb8-6" tabindex="-1"></a><span class="co"># Each fold fits centering/scaling on training data only</span></span>
+<span id="cb8-7"><a href="#cb8-7" tabindex="-1"></a>fit_pca <span class="ot">&lt;-</span> <span class="cf">function</span>(train_data, ncomp) {</span>
+<span id="cb8-8"><a href="#cb8-8" tabindex="-1"></a>  <span class="fu">pca</span>(train_data, <span class="at">ncomp =</span> ncomp, <span class="at">preproc =</span> <span class="fu">center</span>())</span>
+<span id="cb8-9"><a href="#cb8-9" tabindex="-1"></a>}</span></code></pre></div>
+</div>
+<div id="choose-appropriate-fold-sizes" class="section level3">
+<h3>2. Choose Appropriate Fold Sizes</h3>
+<ul>
+<li><strong>Small datasets (&lt; 100 samples)</strong>: Use
+leave-one-out or 10-fold CV</li>
+<li><strong>Medium datasets (100-1000)</strong>: Use 5-10 fold CV</li>
+<li><strong>Large datasets (&gt; 1000)</strong>: Use 3-5 fold CV or
+hold-out validation</li>
+</ul>
+</div>
+<div id="consider-metric-choice" class="section level3">
+<h3>3. Consider Metric Choice</h3>
+<ul>
+<li>Use <strong>RMSE</strong> for general reconstruction quality</li>
+<li>Use <strong>R²</strong> to understand proportion of variance
+explained</li>
+<li>Use <strong>MAE</strong> when outliers are a concern</li>
+</ul>
+</div>
+</div>
+<div id="advanced-cross-validating-other-projectors" class="section level2">
+<h2>Advanced: Cross-validating Other Projectors</h2>
+<p>The CV framework works with any projector type. The key is writing
+appropriate fit and measure functions.</p>
+<div class="sourceCode" id="cb9"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb9-1"><a href="#cb9-1" tabindex="-1"></a><span class="co"># Nyström approximation for kernel PCA</span></span>
+<span id="cb9-2"><a href="#cb9-2" tabindex="-1"></a>fit_nystrom <span class="ot">&lt;-</span> <span class="cf">function</span>(train_data, ncomp) {</span>
+<span id="cb9-3"><a href="#cb9-3" tabindex="-1"></a>  <span class="fu">nystrom_approx</span>(train_data, <span class="at">ncomp =</span> ncomp, <span class="at">nlandmarks =</span> <span class="dv">50</span>, <span class="at">preproc =</span> <span class="fu">center</span>())</span>
+<span id="cb9-4"><a href="#cb9-4" tabindex="-1"></a>}</span>
+<span id="cb9-5"><a href="#cb9-5" tabindex="-1"></a></span>
+<span id="cb9-6"><a href="#cb9-6" tabindex="-1"></a><span class="co"># Kernel-space reconstruction error</span></span>
+<span id="cb9-7"><a href="#cb9-7" tabindex="-1"></a>measure_kernel <span class="ot">&lt;-</span> <span class="cf">function</span>(model, test_data) {</span>
+<span id="cb9-8"><a href="#cb9-8" tabindex="-1"></a>  S <span class="ot">&lt;-</span> <span class="fu">project</span>(model, test_data)</span>
+<span id="cb9-9"><a href="#cb9-9" tabindex="-1"></a>  K_hat <span class="ot">&lt;-</span> S <span class="sc">%*%</span> <span class="fu">t</span>(S)</span>
+<span id="cb9-10"><a href="#cb9-10" tabindex="-1"></a>  Xc <span class="ot">&lt;-</span> <span class="fu">reprocess</span>(model, test_data)</span>
+<span id="cb9-11"><a href="#cb9-11" tabindex="-1"></a>  K_true <span class="ot">&lt;-</span> Xc <span class="sc">%*%</span> <span class="fu">t</span>(Xc)</span>
+<span id="cb9-12"><a href="#cb9-12" tabindex="-1"></a>  tibble<span class="sc">::</span><span class="fu">tibble</span>(<span class="at">kernel_rmse =</span> <span class="fu">sqrt</span>(<span class="fu">mean</span>((K_hat <span class="sc">-</span> K_true)<span class="sc">^</span><span class="dv">2</span>)))</span>
+<span id="cb9-13"><a href="#cb9-13" tabindex="-1"></a>}</span>
+<span id="cb9-14"><a href="#cb9-14" tabindex="-1"></a></span>
+<span id="cb9-15"><a href="#cb9-15" tabindex="-1"></a>cv_nystrom <span class="ot">&lt;-</span> <span class="fu">cv_generic</span>(</span>
+<span id="cb9-16"><a href="#cb9-16" tabindex="-1"></a>  X, folds,</span>
+<span id="cb9-17"><a href="#cb9-17" tabindex="-1"></a>  <span class="at">.fit_fun =</span> fit_nystrom,</span>
+<span id="cb9-18"><a href="#cb9-18" tabindex="-1"></a>  <span class="at">.measure_fun =</span> measure_kernel,</span>
+<span id="cb9-19"><a href="#cb9-19" tabindex="-1"></a>  <span class="at">fit_args =</span> <span class="fu">list</span>(<span class="at">ncomp =</span> <span class="dv">10</span>)</span>
+<span id="cb9-20"><a href="#cb9-20" tabindex="-1"></a>)</span></code></pre></div>
+</div>
+<div id="kernel-pca-via-nyström-standard-and-double" class="section level2">
+<h2>Kernel PCA via Nyström (standard and double)</h2>
+<p>The <code>nystrom_approx()</code> function provides two variants:</p>
+<ul>
+<li><code>method = &quot;standard&quot;</code>: Williams–Seeger single-stage
+Nyström with the usual scaling</li>
+<li><code>method = &quot;double&quot;</code>: Lim–Jin–Zhang two-stage Nyström
+(efficient when <code>p</code> is large)</li>
+</ul>
+<p>With a centered linear kernel and all points as landmarks
+(<code>m = N</code>), the Nyström eigen-decomposition recovers the exact
+top eigenpairs of the kernel matrix <code>K = X_c X_c^T</code>. Below is
+a reproducible snippet that demonstrates this and shows how to project
+new data.</p>
+<div class="sourceCode" id="cb10"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb10-1"><a href="#cb10-1" tabindex="-1"></a><span class="fu">set.seed</span>(<span class="dv">123</span>)</span>
+<span id="cb10-2"><a href="#cb10-2" tabindex="-1"></a>X <span class="ot">&lt;-</span> <span class="fu">matrix</span>(<span class="fu">rnorm</span>(<span class="dv">80</span> <span class="sc">*</span> <span class="dv">10</span>), <span class="dv">80</span>, <span class="dv">10</span>)</span>
+<span id="cb10-3"><a href="#cb10-3" tabindex="-1"></a>ncomp <span class="ot">&lt;-</span> <span class="dv">5</span></span>
+<span id="cb10-4"><a href="#cb10-4" tabindex="-1"></a></span>
+<span id="cb10-5"><a href="#cb10-5" tabindex="-1"></a><span class="co"># Exact setting: linear kernel + centering + m = N</span></span>
+<span id="cb10-6"><a href="#cb10-6" tabindex="-1"></a>fit_std <span class="ot">&lt;-</span> <span class="fu">nystrom_approx</span>(</span>
+<span id="cb10-7"><a href="#cb10-7" tabindex="-1"></a>  X, <span class="at">ncomp =</span> ncomp, <span class="at">landmarks =</span> <span class="dv">1</span><span class="sc">:</span><span class="fu">nrow</span>(X), <span class="at">preproc =</span> <span class="fu">center</span>(), <span class="at">method =</span> <span class="st">&quot;standard&quot;</span></span>
+<span id="cb10-8"><a href="#cb10-8" tabindex="-1"></a>)</span>
+<span id="cb10-9"><a href="#cb10-9" tabindex="-1"></a></span>
+<span id="cb10-10"><a href="#cb10-10" tabindex="-1"></a><span class="co"># Compare kernel eigenvalues: eig(K) vs fit_std$sdev^2</span></span>
+<span id="cb10-11"><a href="#cb10-11" tabindex="-1"></a>Xc <span class="ot">&lt;-</span> <span class="fu">transform</span>(fit_std<span class="sc">$</span>preproc, X)</span>
+<span id="cb10-12"><a href="#cb10-12" tabindex="-1"></a>K  <span class="ot">&lt;-</span> Xc <span class="sc">%*%</span> <span class="fu">t</span>(Xc)</span>
+<span id="cb10-13"><a href="#cb10-13" tabindex="-1"></a>lam_K <span class="ot">&lt;-</span> <span class="fu">eigen</span>(K, <span class="at">symmetric =</span> <span class="cn">TRUE</span>)<span class="sc">$</span>values[<span class="dv">1</span><span class="sc">:</span>ncomp]</span>
+<span id="cb10-14"><a href="#cb10-14" tabindex="-1"></a></span>
+<span id="cb10-15"><a href="#cb10-15" tabindex="-1"></a><span class="fu">data.frame</span>(</span>
+<span id="cb10-16"><a href="#cb10-16" tabindex="-1"></a>  <span class="at">component =</span> <span class="dv">1</span><span class="sc">:</span>ncomp,</span>
+<span id="cb10-17"><a href="#cb10-17" tabindex="-1"></a>  <span class="at">nystrom =</span> <span class="fu">sort</span>(fit_std<span class="sc">$</span>sdev<span class="sc">^</span><span class="dv">2</span>, <span class="at">decreasing =</span> <span class="cn">TRUE</span>),</span>
+<span id="cb10-18"><a href="#cb10-18" tabindex="-1"></a>  <span class="at">exact_K  =</span> <span class="fu">sort</span>(lam_K,          <span class="at">decreasing =</span> <span class="cn">TRUE</span>)</span>
+<span id="cb10-19"><a href="#cb10-19" tabindex="-1"></a>)</span>
+<span id="cb10-20"><a href="#cb10-20" tabindex="-1"></a><span class="co">#&gt;   component   nystrom   exact_K</span></span>
+<span id="cb10-21"><a href="#cb10-21" tabindex="-1"></a><span class="co">#&gt; 1         1 117.64481 117.64481</span></span>
+<span id="cb10-22"><a href="#cb10-22" tabindex="-1"></a><span class="co">#&gt; 2         2 112.66863 112.66863</span></span>
+<span id="cb10-23"><a href="#cb10-23" tabindex="-1"></a><span class="co">#&gt; 3         3 103.44825 103.44825</span></span>
+<span id="cb10-24"><a href="#cb10-24" tabindex="-1"></a><span class="co">#&gt; 4         4  83.17891  83.17891</span></span>
+<span id="cb10-25"><a href="#cb10-25" tabindex="-1"></a><span class="co">#&gt; 5         5  78.30886  78.30886</span></span>
+<span id="cb10-26"><a href="#cb10-26" tabindex="-1"></a></span>
+<span id="cb10-27"><a href="#cb10-27" tabindex="-1"></a><span class="co"># Relationship with PCA: prcomp() returns singular values / sqrt(n - 1)</span></span>
+<span id="cb10-28"><a href="#cb10-28" tabindex="-1"></a>p <span class="ot">&lt;-</span> <span class="fu">prcomp</span>(Xc, <span class="at">center =</span> <span class="cn">FALSE</span>, <span class="at">scale. =</span> <span class="cn">FALSE</span>)</span>
+<span id="cb10-29"><a href="#cb10-29" tabindex="-1"></a>lam_from_pca <span class="ot">&lt;-</span> p<span class="sc">$</span>sdev[<span class="dv">1</span><span class="sc">:</span>ncomp]<span class="sc">^</span><span class="dv">2</span> <span class="sc">*</span> (<span class="fu">nrow</span>(X) <span class="sc">-</span> <span class="dv">1</span>) <span class="co"># equals eig(K)</span></span>
+<span id="cb10-30"><a href="#cb10-30" tabindex="-1"></a></span>
+<span id="cb10-31"><a href="#cb10-31" tabindex="-1"></a><span class="fu">data.frame</span>(</span>
+<span id="cb10-32"><a href="#cb10-32" tabindex="-1"></a>  <span class="at">component =</span> <span class="dv">1</span><span class="sc">:</span>ncomp,</span>
+<span id="cb10-33"><a href="#cb10-33" tabindex="-1"></a>  <span class="at">from_pca  =</span> <span class="fu">sort</span>(lam_from_pca,  <span class="at">decreasing =</span> <span class="cn">TRUE</span>),</span>
+<span id="cb10-34"><a href="#cb10-34" tabindex="-1"></a>  <span class="at">exact_K   =</span> <span class="fu">sort</span>(lam_K,         <span class="at">decreasing =</span> <span class="cn">TRUE</span>)</span>
+<span id="cb10-35"><a href="#cb10-35" tabindex="-1"></a>)</span>
+<span id="cb10-36"><a href="#cb10-36" tabindex="-1"></a><span class="co">#&gt;   component  from_pca   exact_K</span></span>
+<span id="cb10-37"><a href="#cb10-37" tabindex="-1"></a><span class="co">#&gt; 1         1 117.64481 117.64481</span></span>
+<span id="cb10-38"><a href="#cb10-38" tabindex="-1"></a><span class="co">#&gt; 2         2 112.66863 112.66863</span></span>
+<span id="cb10-39"><a href="#cb10-39" tabindex="-1"></a><span class="co">#&gt; 3         3 103.44825 103.44825</span></span>
+<span id="cb10-40"><a href="#cb10-40" tabindex="-1"></a><span class="co">#&gt; 4         4  83.17891  83.17891</span></span>
+<span id="cb10-41"><a href="#cb10-41" tabindex="-1"></a><span class="co">#&gt; 5         5  78.30886  78.30886</span></span>
+<span id="cb10-42"><a href="#cb10-42" tabindex="-1"></a></span>
+<span id="cb10-43"><a href="#cb10-43" tabindex="-1"></a><span class="co"># Out-of-sample projection for new rows</span></span>
+<span id="cb10-44"><a href="#cb10-44" tabindex="-1"></a>new_rows <span class="ot">&lt;-</span> <span class="dv">1</span><span class="sc">:</span><span class="dv">5</span></span>
+<span id="cb10-45"><a href="#cb10-45" tabindex="-1"></a>scores_new <span class="ot">&lt;-</span> <span class="fu">project</span>(fit_std, X[new_rows, , <span class="at">drop =</span> <span class="cn">FALSE</span>])</span>
+<span id="cb10-46"><a href="#cb10-46" tabindex="-1"></a><span class="fu">head</span>(scores_new)</span>
+<span id="cb10-47"><a href="#cb10-47" tabindex="-1"></a><span class="co">#&gt;            [,1]         [,2]        [,3]       [,4]       [,5]</span></span>
+<span id="cb10-48"><a href="#cb10-48" tabindex="-1"></a><span class="co">#&gt; [1,] -0.5065700 -0.003782324 -0.89690602 -1.2402365 -0.2466715</span></span>
+<span id="cb10-49"><a href="#cb10-49" tabindex="-1"></a><span class="co">#&gt; [2,] -0.3673067  0.489430969 -1.23213982 -1.5330320  0.7247966</span></span>
+<span id="cb10-50"><a href="#cb10-50" tabindex="-1"></a><span class="co">#&gt; [3,]  1.9065578 -0.008104080 -0.61654002  1.5191661  1.2188904</span></span>
+<span id="cb10-51"><a href="#cb10-51" tabindex="-1"></a><span class="co">#&gt; [4,] -1.5843734 -0.908340577 -0.94045424 -2.8897545 -2.0328659</span></span>
+<span id="cb10-52"><a href="#cb10-52" tabindex="-1"></a><span class="co">#&gt; [5,]  0.5690207  0.002415067  0.09988366 -0.0194067  0.5888599</span></span>
+<span id="cb10-53"><a href="#cb10-53" tabindex="-1"></a></span>
+<span id="cb10-54"><a href="#cb10-54" tabindex="-1"></a><span class="co"># Double Nyström collapses to standard when l = m = N</span></span>
+<span id="cb10-55"><a href="#cb10-55" tabindex="-1"></a>fit_dbl <span class="ot">&lt;-</span> <span class="fu">nystrom_approx</span>(</span>
+<span id="cb10-56"><a href="#cb10-56" tabindex="-1"></a>  X, <span class="at">ncomp =</span> ncomp, <span class="at">landmarks =</span> <span class="dv">1</span><span class="sc">:</span><span class="fu">nrow</span>(X), <span class="at">preproc =</span> <span class="fu">center</span>(), <span class="at">method =</span> <span class="st">&quot;double&quot;</span>, <span class="at">l =</span> <span class="fu">nrow</span>(X)</span>
+<span id="cb10-57"><a href="#cb10-57" tabindex="-1"></a>)</span>
+<span id="cb10-58"><a href="#cb10-58" tabindex="-1"></a><span class="fu">all.equal</span>(<span class="fu">sort</span>(fit_std<span class="sc">$</span>sdev<span class="sc">^</span><span class="dv">2</span>, <span class="at">decreasing =</span> <span class="cn">TRUE</span>), <span class="fu">sort</span>(fit_dbl<span class="sc">$</span>sdev<span class="sc">^</span><span class="dv">2</span>, <span class="at">decreasing =</span> <span class="cn">TRUE</span>))</span>
+<span id="cb10-59"><a href="#cb10-59" tabindex="-1"></a><span class="co">#&gt; [1] TRUE</span></span></code></pre></div>
+<p>For large feature counts (<code>p &gt;&gt; n</code>), set
+<code>method = &quot;double&quot;</code> and choose a modest intermediate rank
+<code>l</code> to reduce the small problem size. Provide a custom
+<code>kernel_func</code> if you need a non-linear kernel (e.g.,
+RBF).</p>
+<div class="sourceCode" id="cb11"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb11-1"><a href="#cb11-1" tabindex="-1"></a><span class="co"># Example RBF kernel</span></span>
+<span id="cb11-2"><a href="#cb11-2" tabindex="-1"></a>gaussian_kernel <span class="ot">&lt;-</span> <span class="cf">function</span>(A, B, <span class="at">sigma =</span> <span class="dv">1</span>) {</span>
+<span id="cb11-3"><a href="#cb11-3" tabindex="-1"></a>  <span class="co"># ||a-b||^2 = ||a||^2 + ||b||^2 - 2 a·b</span></span>
+<span id="cb11-4"><a href="#cb11-4" tabindex="-1"></a>  G  <span class="ot">&lt;-</span> A <span class="sc">%*%</span> <span class="fu">t</span>(B)</span>
+<span id="cb11-5"><a href="#cb11-5" tabindex="-1"></a>  a2 <span class="ot">&lt;-</span> <span class="fu">rowSums</span>(A <span class="sc">*</span> A)</span>
+<span id="cb11-6"><a href="#cb11-6" tabindex="-1"></a>  b2 <span class="ot">&lt;-</span> <span class="fu">rowSums</span>(B <span class="sc">*</span> B)</span>
+<span id="cb11-7"><a href="#cb11-7" tabindex="-1"></a>  D2 <span class="ot">&lt;-</span> <span class="fu">outer</span>(a2, b2, <span class="st">&quot;+&quot;</span>) <span class="sc">-</span> <span class="dv">2</span> <span class="sc">*</span> G</span>
+<span id="cb11-8"><a href="#cb11-8" tabindex="-1"></a>  <span class="fu">exp</span>(<span class="sc">-</span>D2 <span class="sc">/</span> (<span class="dv">2</span> <span class="sc">*</span> sigma<span class="sc">^</span><span class="dv">2</span>))</span>
+<span id="cb11-9"><a href="#cb11-9" tabindex="-1"></a>}</span>
+<span id="cb11-10"><a href="#cb11-10" tabindex="-1"></a></span>
+<span id="cb11-11"><a href="#cb11-11" tabindex="-1"></a>fit_rbf <span class="ot">&lt;-</span> <span class="fu">nystrom_approx</span>(</span>
+<span id="cb11-12"><a href="#cb11-12" tabindex="-1"></a>  X, <span class="at">ncomp =</span> <span class="dv">8</span>, <span class="at">nlandmarks =</span> <span class="dv">40</span>, <span class="at">preproc =</span> <span class="fu">center</span>(), <span class="at">method =</span> <span class="st">&quot;double&quot;</span>, <span class="at">l =</span> <span class="dv">20</span>,</span>
+<span id="cb11-13"><a href="#cb11-13" tabindex="-1"></a>  <span class="at">kernel_func =</span> gaussian_kernel</span>
+<span id="cb11-14"><a href="#cb11-14" tabindex="-1"></a>)</span>
+<span id="cb11-15"><a href="#cb11-15" tabindex="-1"></a>scores_rbf <span class="ot">&lt;-</span> <span class="fu">project</span>(fit_rbf, X[<span class="dv">1</span><span class="sc">:</span><span class="dv">10</span>, ])</span></code></pre></div>
+<div id="test-coverage-for-nyström" class="section level3">
+<h3>Test coverage for Nyström</h3>
+<p>This package includes unit tests that validate Nyström
+correctness:</p>
+<ul>
+<li>Standard Nyström recovers the exact kernel eigenpairs when
+<code>m = N</code> (centered linear kernel)</li>
+<li>Double Nyström matches standard when <code>l = m = N</code></li>
+<li><code>project()</code> reproduces training scores and matches manual
+formulas for both methods</li>
+</ul>
+<p>See <code>tests/testthat/test_nystrom.R</code> in the source for
+details.</p>
+</div>
+<div id="crossvalidated-kernel-rmse-nyström-vs-pca" class="section level3">
+<h3>Cross‑validated kernel RMSE: Nyström vs PCA</h3>
+<p>Below we compare PCA and Nyström (linear kernel) via a kernel‑space
+RMSE on held‑out folds. For a test block with preprocessed data
+<code>X_test_c</code>, the true kernel is
+<code>K_true = X_test_c %*% t(X_test_c)</code>. With a
+rank‑<code>k</code> model, the approximated kernel is
+<code>K_hat = S %*% t(S)</code>, where <code>S</code> are the component
+scores returned by <code>project()</code>.</p>
+<div class="sourceCode" id="cb12"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb12-1"><a href="#cb12-1" tabindex="-1"></a><span class="fu">set.seed</span>(<span class="dv">202</span>)</span>
+<span id="cb12-2"><a href="#cb12-2" tabindex="-1"></a></span>
+<span id="cb12-3"><a href="#cb12-3" tabindex="-1"></a><span class="co"># PCA fit function (reuses earlier fit_pca)</span></span>
+<span id="cb12-4"><a href="#cb12-4" tabindex="-1"></a>fit_pca <span class="ot">&lt;-</span> <span class="cf">function</span>(train_data, ncomp) {</span>
+<span id="cb12-5"><a href="#cb12-5" tabindex="-1"></a>  <span class="fu">pca</span>(train_data, <span class="at">ncomp =</span> ncomp, <span class="at">preproc =</span> <span class="fu">center</span>())</span>
+<span id="cb12-6"><a href="#cb12-6" tabindex="-1"></a>}</span>
+<span id="cb12-7"><a href="#cb12-7" tabindex="-1"></a></span>
+<span id="cb12-8"><a href="#cb12-8" tabindex="-1"></a><span class="co"># Nyström fit function (standard variant, linear kernel, no RSpectra needed for small data)</span></span>
+<span id="cb12-9"><a href="#cb12-9" tabindex="-1"></a>fit_nystrom <span class="ot">&lt;-</span> <span class="cf">function</span>(train_data, ncomp, <span class="at">nlandmarks =</span> <span class="dv">50</span>) {</span>
+<span id="cb12-10"><a href="#cb12-10" tabindex="-1"></a>  <span class="fu">nystrom_approx</span>(train_data, <span class="at">ncomp =</span> ncomp, <span class="at">nlandmarks =</span> nlandmarks,</span>
+<span id="cb12-11"><a href="#cb12-11" tabindex="-1"></a>                 <span class="at">preproc =</span> <span class="fu">center</span>(), <span class="at">method =</span> <span class="st">&quot;standard&quot;</span>, <span class="at">use_RSpectra =</span> <span class="cn">FALSE</span>)</span>
+<span id="cb12-12"><a href="#cb12-12" tabindex="-1"></a>}</span>
+<span id="cb12-13"><a href="#cb12-13" tabindex="-1"></a></span>
+<span id="cb12-14"><a href="#cb12-14" tabindex="-1"></a><span class="co"># Kernel-space RMSE metric for a test fold</span></span>
+<span id="cb12-15"><a href="#cb12-15" tabindex="-1"></a>measure_kernel_rmse <span class="ot">&lt;-</span> <span class="cf">function</span>(model, test_data) {</span>
+<span id="cb12-16"><a href="#cb12-16" tabindex="-1"></a>  S <span class="ot">&lt;-</span> <span class="fu">project</span>(model, test_data)</span>
+<span id="cb12-17"><a href="#cb12-17" tabindex="-1"></a>  K_hat <span class="ot">&lt;-</span> S <span class="sc">%*%</span> <span class="fu">t</span>(S)</span>
+<span id="cb12-18"><a href="#cb12-18" tabindex="-1"></a>  Xc <span class="ot">&lt;-</span> <span class="fu">reprocess</span>(model, test_data)</span>
+<span id="cb12-19"><a href="#cb12-19" tabindex="-1"></a>  K_true <span class="ot">&lt;-</span> Xc <span class="sc">%*%</span> <span class="fu">t</span>(Xc)</span>
+<span id="cb12-20"><a href="#cb12-20" tabindex="-1"></a>  tibble<span class="sc">::</span><span class="fu">tibble</span>(<span class="at">kernel_rmse =</span> <span class="fu">sqrt</span>(<span class="fu">mean</span>((K_hat <span class="sc">-</span> K_true)<span class="sc">^</span><span class="dv">2</span>)))</span>
+<span id="cb12-21"><a href="#cb12-21" tabindex="-1"></a>}</span>
+<span id="cb12-22"><a href="#cb12-22" tabindex="-1"></a></span>
+<span id="cb12-23"><a href="#cb12-23" tabindex="-1"></a><span class="co"># Use a local copy of iris data and local folds for this comparison</span></span>
+<span id="cb12-24"><a href="#cb12-24" tabindex="-1"></a>X_cv <span class="ot">&lt;-</span> <span class="fu">as.matrix</span>(<span class="fu">scale</span>(iris[, <span class="dv">1</span><span class="sc">:</span><span class="dv">4</span>]))</span>
+<span id="cb12-25"><a href="#cb12-25" tabindex="-1"></a>K <span class="ot">&lt;-</span> <span class="dv">5</span></span>
+<span id="cb12-26"><a href="#cb12-26" tabindex="-1"></a>fold_ids <span class="ot">&lt;-</span> <span class="fu">sample</span>(<span class="fu">rep</span>(<span class="dv">1</span><span class="sc">:</span>K, <span class="at">length.out =</span> <span class="fu">nrow</span>(X_cv)))</span>
+<span id="cb12-27"><a href="#cb12-27" tabindex="-1"></a>folds_cv <span class="ot">&lt;-</span> <span class="fu">lapply</span>(<span class="dv">1</span><span class="sc">:</span>K, <span class="cf">function</span>(k) <span class="fu">list</span>(</span>
+<span id="cb12-28"><a href="#cb12-28" tabindex="-1"></a>  <span class="at">train =</span> <span class="fu">which</span>(fold_ids <span class="sc">!=</span> k),</span>
+<span id="cb12-29"><a href="#cb12-29" tabindex="-1"></a>  <span class="at">test  =</span> <span class="fu">which</span>(fold_ids <span class="sc">==</span> k)</span>
+<span id="cb12-30"><a href="#cb12-30" tabindex="-1"></a>))</span>
+<span id="cb12-31"><a href="#cb12-31" tabindex="-1"></a></span>
+<span id="cb12-32"><a href="#cb12-32" tabindex="-1"></a><span class="co"># Compare for k = 3 components</span></span>
+<span id="cb12-33"><a href="#cb12-33" tabindex="-1"></a>k_sel <span class="ot">&lt;-</span> <span class="dv">3</span></span>
+<span id="cb12-34"><a href="#cb12-34" tabindex="-1"></a>cv_pca_kernel <span class="ot">&lt;-</span> <span class="fu">cv_generic</span>(</span>
+<span id="cb12-35"><a href="#cb12-35" tabindex="-1"></a>  X_cv, folds_cv,</span>
+<span id="cb12-36"><a href="#cb12-36" tabindex="-1"></a>  <span class="at">.fit_fun =</span> fit_pca,</span>
+<span id="cb12-37"><a href="#cb12-37" tabindex="-1"></a>  <span class="at">.measure_fun =</span> measure_kernel_rmse,</span>
+<span id="cb12-38"><a href="#cb12-38" tabindex="-1"></a>  <span class="at">fit_args =</span> <span class="fu">list</span>(<span class="at">ncomp =</span> k_sel)</span>
+<span id="cb12-39"><a href="#cb12-39" tabindex="-1"></a>)</span>
+<span id="cb12-40"><a href="#cb12-40" tabindex="-1"></a></span>
+<span id="cb12-41"><a href="#cb12-41" tabindex="-1"></a>cv_nys_kernel <span class="ot">&lt;-</span> <span class="fu">cv_generic</span>(</span>
+<span id="cb12-42"><a href="#cb12-42" tabindex="-1"></a>  X_cv, folds_cv,</span>
+<span id="cb12-43"><a href="#cb12-43" tabindex="-1"></a>  <span class="at">.fit_fun =</span> fit_nystrom,</span>
+<span id="cb12-44"><a href="#cb12-44" tabindex="-1"></a>  <span class="at">.measure_fun =</span> measure_kernel_rmse,</span>
+<span id="cb12-45"><a href="#cb12-45" tabindex="-1"></a>  <span class="at">fit_args =</span> <span class="fu">list</span>(<span class="at">ncomp =</span> k_sel, <span class="at">nlandmarks =</span> <span class="dv">50</span>)</span>
+<span id="cb12-46"><a href="#cb12-46" tabindex="-1"></a>)</span>
+<span id="cb12-47"><a href="#cb12-47" tabindex="-1"></a></span>
+<span id="cb12-48"><a href="#cb12-48" tabindex="-1"></a>metrics_pca <span class="ot">&lt;-</span> dplyr<span class="sc">::</span><span class="fu">bind_rows</span>(cv_pca_kernel<span class="sc">$</span>metrics)</span>
+<span id="cb12-49"><a href="#cb12-49" tabindex="-1"></a>metrics_nys <span class="ot">&lt;-</span> dplyr<span class="sc">::</span><span class="fu">bind_rows</span>(cv_nys_kernel<span class="sc">$</span>metrics)</span>
+<span id="cb12-50"><a href="#cb12-50" tabindex="-1"></a>rmse_pca <span class="ot">&lt;-</span> <span class="fu">mean</span>(metrics_pca<span class="sc">$</span>kernel_rmse, <span class="at">na.rm =</span> <span class="cn">TRUE</span>)</span>
+<span id="cb12-51"><a href="#cb12-51" tabindex="-1"></a>rmse_nys <span class="ot">&lt;-</span> <span class="fu">mean</span>(metrics_nys<span class="sc">$</span>kernel_rmse, <span class="at">na.rm =</span> <span class="cn">TRUE</span>)</span>
+<span id="cb12-52"><a href="#cb12-52" tabindex="-1"></a></span>
+<span id="cb12-53"><a href="#cb12-53" tabindex="-1"></a>cv_summary <span class="ot">&lt;-</span> <span class="fu">data.frame</span>(</span>
+<span id="cb12-54"><a href="#cb12-54" tabindex="-1"></a>  <span class="at">method =</span> <span class="fu">c</span>(<span class="st">&quot;PCA&quot;</span>, <span class="st">&quot;Nyström (linear)&quot;</span>),</span>
+<span id="cb12-55"><a href="#cb12-55" tabindex="-1"></a>  <span class="at">kernel_rmse =</span> <span class="fu">c</span>(rmse_pca, rmse_nys)</span>
+<span id="cb12-56"><a href="#cb12-56" tabindex="-1"></a>)</span>
+<span id="cb12-57"><a href="#cb12-57" tabindex="-1"></a><span class="fu">print</span>(cv_summary)</span>
+<span id="cb12-58"><a href="#cb12-58" tabindex="-1"></a><span class="co">#&gt;             method kernel_rmse</span></span>
+<span id="cb12-59"><a href="#cb12-59" tabindex="-1"></a><span class="co">#&gt; 1              PCA  0.02153248</span></span>
+<span id="cb12-60"><a href="#cb12-60" tabindex="-1"></a><span class="co">#&gt; 2 Nyström (linear)  0.02266859</span></span>
+<span id="cb12-61"><a href="#cb12-61" tabindex="-1"></a></span>
+<span id="cb12-62"><a href="#cb12-62" tabindex="-1"></a><span class="co"># Simple bar plot</span></span>
+<span id="cb12-63"><a href="#cb12-63" tabindex="-1"></a><span class="fu">ggplot</span>(cv_summary, <span class="fu">aes</span>(<span class="at">x =</span> method, <span class="at">y =</span> kernel_rmse, <span class="at">fill =</span> method)) <span class="sc">+</span></span>
+<span id="cb12-64"><a href="#cb12-64" tabindex="-1"></a>  <span class="fu">geom_col</span>(<span class="at">width =</span> <span class="fl">0.6</span>) <span class="sc">+</span></span>
+<span id="cb12-65"><a href="#cb12-65" tabindex="-1"></a>  <span class="fu">guides</span>(<span class="at">fill =</span> <span class="st">&quot;none&quot;</span>) <span class="sc">+</span></span>
+<span id="cb12-66"><a href="#cb12-66" tabindex="-1"></a>  <span class="fu">labs</span>(<span class="at">title =</span> <span class="st">&quot;Cross‑validated kernel RMSE (k = 3)&quot;</span>, <span class="at">y =</span> <span class="st">&quot;Kernel RMSE&quot;</span>, <span class="at">x =</span> <span class="cn">NULL</span>)</span></code></pre></div>
+<p><img role="img" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAkAAAAGACAYAAABFmt0fAAAEDmlDQ1BrQ0dDb2xvclNwYWNlR2VuZXJpY1JHQgAAOI2NVV1oHFUUPpu5syskzoPUpqaSDv41lLRsUtGE2uj+ZbNt3CyTbLRBkMns3Z1pJjPj/KRpKT4UQRDBqOCT4P9bwSchaqvtiy2itFCiBIMo+ND6R6HSFwnruTOzu5O4a73L3PnmnO9+595z7t4LkLgsW5beJQIsGq4t5dPis8fmxMQ6dMF90A190C0rjpUqlSYBG+PCv9rt7yDG3tf2t/f/Z+uuUEcBiN2F2Kw4yiLiZQD+FcWyXYAEQfvICddi+AnEO2ycIOISw7UAVxieD/Cyz5mRMohfRSwoqoz+xNuIB+cj9loEB3Pw2448NaitKSLLRck2q5pOI9O9g/t/tkXda8Tbg0+PszB9FN8DuPaXKnKW4YcQn1Xk3HSIry5ps8UQ/2W5aQnxIwBdu7yFcgrxPsRjVXu8HOh0qao30cArp9SZZxDfg3h1wTzKxu5E/LUxX5wKdX5SnAzmDx4A4OIqLbB69yMesE1pKojLjVdoNsfyiPi45hZmAn3uLWdpOtfQOaVmikEs7ovj8hFWpz7EV6mel0L9Xy23FMYlPYZenAx0yDB1/PX6dledmQjikjkXCxqMJS9WtfFCyH9XtSekEF+2dH+P4tzITduTygGfv58a5VCTH5PtXD7EFZiNyUDBhHnsFTBgE0SQIA9pfFtgo6cKGuhooeilaKH41eDs38Ip+f4At1Rq/sjr6NEwQqb/I/DQqsLvaFUjvAx+eWirddAJZnAj1DFJL0mSg/gcIpPkMBkhoyCSJ8lTZIxk0TpKDjXHliJzZPO50dR5ASNSnzeLvIvod0HG/mdkmOC0z8VKnzcQ2M/Yz2vKldduXjp9bleLu0ZWn7vWc+l0JGcaai10yNrUnXLP/8Jf59ewX+c3Wgz+B34Df+vbVrc16zTMVgp9um9bxEfzPU5kPqUtVWxhs6OiWTVW+gIfywB9uXi7CGcGW/zk98k/kmvJ95IfJn/j3uQ+4c5zn3Kfcd+AyF3gLnJfcl9xH3OfR2rUee80a+6vo7EK5mmXUdyfQlrYLTwoZIU9wsPCZEtP6BWGhAlhL3p2N6sTjRdduwbHsG9kq32sgBepc+xurLPW4T9URpYGJ3ym4+8zA05u44QjST8ZIoVtu3qE7fWmdn5LPdqvgcZz8Ww8BWJ8X3w0PhQ/wnCDGd+LvlHs8dRy6bLLDuKMaZ20tZrqisPJ5ONiCq8yKhYM5cCgKOu66Lsc0aYOtZdo5QCwezI4wm9J/v0X23mlZXOfBjj8Jzv3WrY5D+CsA9D7aMs2gGfjve8ArD6mePZSeCfEYt8CONWDw8FXTxrPqx/r9Vt4biXeANh8vV7/+/16ffMD1N8AuKD/A/8leAvFY9bLAAAAOGVYSWZNTQAqAAAACAABh2kABAAAAAEAAAAaAAAAAAACoAIABAAAAAEAAAJAoAMABAAAAAEAAAGAAAAAAEIEMHcAAEAASURBVHgB7d0HvBTV3f/x36X3jghKAEN5YgFFKWrUYNSoiFgR1Kj8UQwaxYoa26MhCYoRfEwkohILIFaUYm8BCxaCKBZACVUQ6b3vf77HzDhb7t7dC3fvls95ve7dmTNnZs68Z8tvzzkzWxTxkpEQQAABBBBAAIECEqhQQMfKoSKAAAIIIIAAAk6AAIgnAgIIIIAAAggUnAABUMGdcg4YAQQQQAABBAiAeA4ggAACCCCAQMEJEAAV3CnngBFAAAEEEECAAIjnAAIIIIAAAggUnEClgjvi0AFv377dPvzwQ/vXv/5lU6ZMsaKiIjvwwAPt97//vbVs2TJUkkkJ3Hzzzfazn/3MLr30Ugdyxx13WIMGDeyKK64oFmjnzp122WWX2cknn2w9e/YstlxxC1asWGGNGjUqbnHK+anU49///rc9+OCDduONN1qrVq1S3nZ5Fow9J7F1Wb16tTue2PwKFSpY7dq17X/+53+sV69eVqtWraDIokWLbPDgwW7+3HPPtWOOOSZYFp548cUX7aWXXrJ99tnHbrvttvAiGzNmjL333ns2a9Ysa9KkiXXo0MHtp23btkG5NWvW2A033BDMFzehc5JK+sMf/mAtWrRwz89UnpupbDPdMmvXrrVHHnnEvv76a2vTpo2dcMIJ7tjD27nyyiutS5cudt5554WzmUYAgUwL6D5AhZi2bNkSOe6443QPpEjNmjUj3gd0xAt+3HzlypUjXlBUiCxJj9kLCiNnnnlmUOaAAw6InHjiicF8oolt27Y5U++DOtHiYvO03m9+85uI90FcbJl0FqRSj2eeecbVddq0aelsulzLxp6T2MosXLjQHZMXhEQOO+yw4O+ggw6KeEGQW3bwwQdHFi9eHKzqBYIuX6+N008/PciPnejUqZMrp+eBnzZu3Bg566yzgvxTTz010rp1azdfp06dyIQJE/yibp/ahxd8Rfbdd99i/4IVkkzo9eoFyhEv4HOlUnluJtlcqRZ5wU/ECwYjFStWdO8tTZs2jVSqVCnyz3/+M2p7n3zyScT74hBZunRpVD4zCCCQWYGCbAFSy4/3Jm1vv/22jRs3zk477TSrWrWqiz3nzZtnRx99tPXr189mzpxpNWrUcPnZ8u/vf/+7+2ZZXH2mT59uN910U3GL92j+888/b16wuEe36W9s8+bN9uqrr9pRRx3lZ/G4GwLnn3++3XPPPVFbWLlypen5dPvtt9uf//xnNx0uoJabl19+2davX+9ai8LLvv32W/v444/j8p9++ml79tlnbejQoXbdddcFq/ivqz59+pha9apVqxYsu/jii23YsGHBfLoTu3btst/97nd2zTXXWL169dJdfY+Vl+8PP/xgs2fPtp///OemVke9z+j41PpZv359t69DDz3UvccMGjTIHn/88T22fzaEAALpCRTkGKARI0bYpEmT7H//93/tnHPOCYIf0e233372t7/9zb755hv7y1/+EmguWbLE1J2wYcMGFzjpQyGcvG9z9vrrr7suNe9bcHhRMK03xsmTJ9uMGTNMH/CJUkll/GZ1Na0n+tObq5+8Vi6bP3++q7Of5z+q+0HL9OHhp2XLltk777xjb775pqkbpKSkbpNEAaKc3njjDVu+fHmxm9i6davrHpHHp59+aps2bQrKeq015rVcuHltS/X0vhcEy/XB8uWXX9orr7zilgULYiZSqUfMKnGzqov2/91330UtK6kOeg5oPdVb3UCfffaZW99/HmlGx6ggT+WKS6tWrXLPN69VKsqouPLp5Dds2NAFy3vvvbe99tprcat6rX2m55BeK7FJXxy8lh3zWlqiFuk1oC8T6kYOJ72u9IEvF33x2JNp4sSJrsvpwgsvTLpZPR9lHX6uJV0hjYV6HX3xxRd2+eWXu+BHq3otQaYuRD1X3n///ait9e3b15588sngeR61kBkEEMiMQGYbnLJjb96Yh4j3TTHivTEVWyEvAIp4b2rBcjXje29ukV/84heuOX+vvfaKeC1JEe/NNPL//t//i3jjh1zTt3fWIt7YisjIkSODddUt4He3qXlcZerWrRt5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ECAAyonTRCURQAABBBBAYE8KEADtSU22hQACCCCAAAI5IUAAlBOniUoigAACCCCAwJ4UyOidoPdkxdkWAmUpMHLkSFu8eLHdeeedZbkbto0AAmkKPPTQQ7Zw4UL74x//mOaaFEcgWiCjd4KO3jVzCGSvwLfffmvffPNN9laQmiFQoALz5s2zr7/+ukCPnsPekwJ0ge1JTbaFAAIIIIAAAjkhQACUE6eJSmZaoE6dOla/fv1M75b9IYBACQL6TUhemyUgsTglAcYApcREIQQQQAABBBDIJwFagPLpbHIsCCCAAAIIIJCSAAFQSkwUQgABBBBAAIF8EuAqsHw6mzl0LO+++641btzY2rVrF9R69erVNmPGDDv22GODvHQmtm7dalWrVk24ypQpU6x58+a2Zs0aq1ixorVv3z5huVQzv/jiC7evevXq2VdffWVHHXWUKa9KlSrWpk2bVDdTqnLTp0+3Jk2a2L777luq9VkJgWwT0Gv31VdfDapVuXJla9q0qXXo0MGKioqC/OXLl9u///1vW7t2rR1++OH2s5/9LFjmT7zxxhsuv23btn4WjwgkFKAFKCELmWUtMGbMGLvhhhts/fr1wa6+++47e/jhh4P5dCbuu+8+mzZtWrGrzJ0711asWGELFiywJUuWFFsulQW7du2yRx991AVUixYtstGjR7vVvvzyS9N+yjq1aNHCHnnkkbLeDdtHIGMCGzZssKFDh9rs2bNtzpw59umnn9pdd91l1113nen1pqTA5pJLLrGZM2faunXr7A9/+IP99a9/jaqj7t2l94J77703Kp8ZBBIJ0AKUSIW8jAioJWb48OF26623Ru1Pb3j6hhe+0mPTpk2u5UYtPAqavv/+e2vWrJnVqFHD9O1x/vz5ruVl27ZttmPHDqtUqZILePbaay833a9fP1MLk74xqvVESeW2bNli1atXdzc93GeffVxZbV/badiwYVS9/JmXX37ZOnbsGNfadMoppwTfVlX/unXrunpqPX+fmo5EIqZgT3UM52vZ5s2b3TKt26hRI2WZjj18PMrXcetD4uCDD3Zl+IdAPghcffXV7rmuY9HzvkePHsGXinvuuccefPBB0xcApXPOOcfOP/98+/Wvfx28Dl566SU7/fTT7ZVXXnH38WrdurUryz8EEgkQACVSIS8jAv3797cRI0aYusN++ctfBvtUAHTR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" /><!-- --></p>
+</div>
+</div>
+<div id="summary" class="section level2">
+<h2>Summary</h2>
+<p>The <code>multivarious</code> CV framework provides: - Easy
+cross-validation for any dimensionality reduction method - Flexible
+metric calculation - Parallel execution support - Tidy output format for
+easy analysis</p>
+<p>Use it to make informed decisions about model complexity and ensure
+your dimensionality reduction generalizes well to new data.</p>
+</div>
+
+
+
+<!-- code folding -->
+
+
+<!-- dynamically load mathjax for compatibility with self-contained -->
+<script>
+  (function () {
+    var script = document.createElement("script");
+    script.type = "text/javascript";
+    script.src  = "https://mathjax.rstudio.com/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML";
+    document.getElementsByTagName("head")[0].appendChild(script);
+  })();
+</script>
+
+</body>
+</html>

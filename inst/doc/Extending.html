@@ -1,0 +1,701 @@
+<!DOCTYPE html>
+
+<html>
+
+<head>
+
+<meta charset="utf-8" />
+<meta name="generator" content="pandoc" />
+<meta http-equiv="X-UA-Compatible" content="IE=EDGE" />
+
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+
+
+
+<title>Extending multiblock: CCA and glmnet Examples</title>
+
+<script>// Pandoc 2.9 adds attributes on both header and div. We remove the former (to
+// be compatible with the behavior of Pandoc < 2.8).
+document.addEventListener('DOMContentLoaded', function(e) {
+  var hs = document.querySelectorAll("div.section[class*='level'] > :first-child");
+  var i, h, a;
+  for (i = 0; i < hs.length; i++) {
+    h = hs[i];
+    if (!/^h[1-6]$/i.test(h.tagName)) continue;  // it should be a header h1-h6
+    a = h.attributes;
+    while (a.length > 0) h.removeAttribute(a[0].name);
+  }
+});
+</script>
+
+<style type="text/css">
+code{white-space: pre-wrap;}
+span.smallcaps{font-variant: small-caps;}
+span.underline{text-decoration: underline;}
+div.column{display: inline-block; vertical-align: top; width: 50%;}
+div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+ul.task-list{list-style: none;}
+</style>
+
+
+
+<style type="text/css">
+code {
+white-space: pre;
+}
+.sourceCode {
+overflow: visible;
+}
+</style>
+<style type="text/css" data-origin="pandoc">
+html { -webkit-text-size-adjust: 100%; }
+pre > code.sourceCode { white-space: pre; position: relative; }
+pre > code.sourceCode > span { display: inline-block; line-height: 1.25; }
+pre > code.sourceCode > span:empty { height: 1.2em; }
+.sourceCode { overflow: visible; }
+code.sourceCode > span { color: inherit; text-decoration: inherit; }
+div.sourceCode { margin: 1em 0; }
+pre.sourceCode { margin: 0; }
+@media screen {
+div.sourceCode { overflow: auto; }
+}
+@media print {
+pre > code.sourceCode { white-space: pre-wrap; }
+pre > code.sourceCode > span { text-indent: -5em; padding-left: 5em; }
+}
+pre.numberSource code
+{ counter-reset: source-line 0; }
+pre.numberSource code > span
+{ position: relative; left: -4em; counter-increment: source-line; }
+pre.numberSource code > span > a:first-child::before
+{ content: counter(source-line);
+position: relative; left: -1em; text-align: right; vertical-align: baseline;
+border: none; display: inline-block;
+-webkit-touch-callout: none; -webkit-user-select: none;
+-khtml-user-select: none; -moz-user-select: none;
+-ms-user-select: none; user-select: none;
+padding: 0 4px; width: 4em;
+color: #aaaaaa;
+}
+pre.numberSource { margin-left: 3em; border-left: 1px solid #aaaaaa; padding-left: 4px; }
+div.sourceCode
+{ }
+@media screen {
+pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
+}
+code span.al { color: #ff0000; font-weight: bold; } 
+code span.an { color: #60a0b0; font-weight: bold; font-style: italic; } 
+code span.at { color: #7d9029; } 
+code span.bn { color: #40a070; } 
+code span.bu { color: #008000; } 
+code span.cf { color: #007020; font-weight: bold; } 
+code span.ch { color: #4070a0; } 
+code span.cn { color: #880000; } 
+code span.co { color: #60a0b0; font-style: italic; } 
+code span.cv { color: #60a0b0; font-weight: bold; font-style: italic; } 
+code span.do { color: #ba2121; font-style: italic; } 
+code span.dt { color: #902000; } 
+code span.dv { color: #40a070; } 
+code span.er { color: #ff0000; font-weight: bold; } 
+code span.ex { } 
+code span.fl { color: #40a070; } 
+code span.fu { color: #06287e; } 
+code span.im { color: #008000; font-weight: bold; } 
+code span.in { color: #60a0b0; font-weight: bold; font-style: italic; } 
+code span.kw { color: #007020; font-weight: bold; } 
+code span.op { color: #666666; } 
+code span.ot { color: #007020; } 
+code span.pp { color: #bc7a00; } 
+code span.sc { color: #4070a0; } 
+code span.ss { color: #bb6688; } 
+code span.st { color: #4070a0; } 
+code span.va { color: #19177c; } 
+code span.vs { color: #4070a0; } 
+code span.wa { color: #60a0b0; font-weight: bold; font-style: italic; } 
+</style>
+<script>
+// apply pandoc div.sourceCode style to pre.sourceCode instead
+(function() {
+  var sheets = document.styleSheets;
+  for (var i = 0; i < sheets.length; i++) {
+    if (sheets[i].ownerNode.dataset["origin"] !== "pandoc") continue;
+    try { var rules = sheets[i].cssRules; } catch (e) { continue; }
+    var j = 0;
+    while (j < rules.length) {
+      var rule = rules[j];
+      // check if there is a div.sourceCode rule
+      if (rule.type !== rule.STYLE_RULE || rule.selectorText !== "div.sourceCode") {
+        j++;
+        continue;
+      }
+      var style = rule.style.cssText;
+      // check if color or background-color is set
+      if (rule.style.color === '' && rule.style.backgroundColor === '') {
+        j++;
+        continue;
+      }
+      // replace div.sourceCode by a pre.sourceCode rule
+      sheets[i].deleteRule(j);
+      sheets[i].insertRule('pre.sourceCode{' + style + '}', j);
+    }
+  }
+})();
+</script>
+
+
+
+
+<style type="text/css">body {
+background-color: #fff;
+margin: 1em auto;
+max-width: 700px;
+overflow: visible;
+padding-left: 2em;
+padding-right: 2em;
+font-family: "Open Sans", "Helvetica Neue", Helvetica, Arial, sans-serif;
+font-size: 14px;
+line-height: 1.35;
+}
+#TOC {
+clear: both;
+margin: 0 0 10px 10px;
+padding: 4px;
+width: 400px;
+border: 1px solid #CCCCCC;
+border-radius: 5px;
+background-color: #f6f6f6;
+font-size: 13px;
+line-height: 1.3;
+}
+#TOC .toctitle {
+font-weight: bold;
+font-size: 15px;
+margin-left: 5px;
+}
+#TOC ul {
+padding-left: 40px;
+margin-left: -1.5em;
+margin-top: 5px;
+margin-bottom: 5px;
+}
+#TOC ul ul {
+margin-left: -2em;
+}
+#TOC li {
+line-height: 16px;
+}
+table {
+margin: 1em auto;
+border-width: 1px;
+border-color: #DDDDDD;
+border-style: outset;
+border-collapse: collapse;
+}
+table th {
+border-width: 2px;
+padding: 5px;
+border-style: inset;
+}
+table td {
+border-width: 1px;
+border-style: inset;
+line-height: 18px;
+padding: 5px 5px;
+}
+table, table th, table td {
+border-left-style: none;
+border-right-style: none;
+}
+table thead, table tr.even {
+background-color: #f7f7f7;
+}
+p {
+margin: 0.5em 0;
+}
+blockquote {
+background-color: #f6f6f6;
+padding: 0.25em 0.75em;
+}
+hr {
+border-style: solid;
+border: none;
+border-top: 1px solid #777;
+margin: 28px 0;
+}
+dl {
+margin-left: 0;
+}
+dl dd {
+margin-bottom: 13px;
+margin-left: 13px;
+}
+dl dt {
+font-weight: bold;
+}
+ul {
+margin-top: 0;
+}
+ul li {
+list-style: circle outside;
+}
+ul ul {
+margin-bottom: 0;
+}
+pre, code {
+background-color: #f7f7f7;
+border-radius: 3px;
+color: #333;
+white-space: pre-wrap; 
+}
+pre {
+border-radius: 3px;
+margin: 5px 0px 10px 0px;
+padding: 10px;
+}
+pre:not([class]) {
+background-color: #f7f7f7;
+}
+code {
+font-family: Consolas, Monaco, 'Courier New', monospace;
+font-size: 85%;
+}
+p > code, li > code {
+padding: 2px 0px;
+}
+div.figure {
+text-align: center;
+}
+img {
+background-color: #FFFFFF;
+padding: 2px;
+border: 1px solid #DDDDDD;
+border-radius: 3px;
+border: 1px solid #CCCCCC;
+margin: 0 5px;
+}
+h1 {
+margin-top: 0;
+font-size: 35px;
+line-height: 40px;
+}
+h2 {
+border-bottom: 4px solid #f7f7f7;
+padding-top: 10px;
+padding-bottom: 2px;
+font-size: 145%;
+}
+h3 {
+border-bottom: 2px solid #f7f7f7;
+padding-top: 10px;
+font-size: 120%;
+}
+h4 {
+border-bottom: 1px solid #f7f7f7;
+margin-left: 8px;
+font-size: 105%;
+}
+h5, h6 {
+border-bottom: 1px solid #ccc;
+font-size: 105%;
+}
+a {
+color: #0033dd;
+text-decoration: none;
+}
+a:hover {
+color: #6666ff; }
+a:visited {
+color: #800080; }
+a:visited:hover {
+color: #BB00BB; }
+a[href^="http:"] {
+text-decoration: underline; }
+a[href^="https:"] {
+text-decoration: underline; }
+
+code > span.kw { color: #555; font-weight: bold; } 
+code > span.dt { color: #902000; } 
+code > span.dv { color: #40a070; } 
+code > span.bn { color: #d14; } 
+code > span.fl { color: #d14; } 
+code > span.ch { color: #d14; } 
+code > span.st { color: #d14; } 
+code > span.co { color: #888888; font-style: italic; } 
+code > span.ot { color: #007020; } 
+code > span.al { color: #ff0000; font-weight: bold; } 
+code > span.fu { color: #900; font-weight: bold; } 
+code > span.er { color: #a61717; background-color: #e3d2d2; } 
+</style>
+
+
+
+
+</head>
+
+<body>
+
+
+
+
+<h1 class="title toc-ignore">Extending multiblock: CCA and glmnet
+Examples</h1>
+
+
+
+<p>This vignette demonstrates how to wrap existing statistical models
+within the <code>multiblock</code> framework, specifically using
+<code>cross_projector</code> for Canonical Correlation Analysis (CCA)
+and <code>projector</code> for <code>glmnet</code> (penalized
+regression).</p>
+<div id="canonical-correlation-analysis-with-cross_projector" class="section level1">
+<h1>1. Canonical Correlation Analysis with
+<code>cross_projector</code></h1>
+<div id="data-setup" class="section level2">
+<h2>1.1 Data Setup</h2>
+<p>We use the classic Iris dataset and split its features into two
+blocks:</p>
+<ul>
+<li><strong>X-block</strong>: Sepal.Length, Sepal.Width</li>
+<li><strong>Y-block</strong>: Petal.Length, Petal.Width</li>
+</ul>
+<div class="sourceCode" id="cb1"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb1-1"><a href="#cb1-1" tabindex="-1"></a><span class="fu">data</span>(iris)</span>
+<span id="cb1-2"><a href="#cb1-2" tabindex="-1"></a>X <span class="ot">&lt;-</span> <span class="fu">as.matrix</span>(iris[, <span class="dv">1</span><span class="sc">:</span><span class="dv">2</span>])</span>
+<span id="cb1-3"><a href="#cb1-3" tabindex="-1"></a>Y <span class="ot">&lt;-</span> <span class="fu">as.matrix</span>(iris[, <span class="dv">3</span><span class="sc">:</span><span class="dv">4</span>])</span>
+<span id="cb1-4"><a href="#cb1-4" tabindex="-1"></a></span>
+<span id="cb1-5"><a href="#cb1-5" tabindex="-1"></a><span class="co"># Show first few rows of combined data</span></span>
+<span id="cb1-6"><a href="#cb1-6" tabindex="-1"></a><span class="fu">head</span>(<span class="fu">cbind</span>(X, Y))</span>
+<span id="cb1-7"><a href="#cb1-7" tabindex="-1"></a><span class="co">#&gt;      Sepal.Length Sepal.Width Petal.Length Petal.Width</span></span>
+<span id="cb1-8"><a href="#cb1-8" tabindex="-1"></a><span class="co">#&gt; [1,]          5.1         3.5          1.4         0.2</span></span>
+<span id="cb1-9"><a href="#cb1-9" tabindex="-1"></a><span class="co">#&gt; [2,]          4.9         3.0          1.4         0.2</span></span>
+<span id="cb1-10"><a href="#cb1-10" tabindex="-1"></a><span class="co">#&gt; [3,]          4.7         3.2          1.3         0.2</span></span>
+<span id="cb1-11"><a href="#cb1-11" tabindex="-1"></a><span class="co">#&gt; [4,]          4.6         3.1          1.5         0.2</span></span>
+<span id="cb1-12"><a href="#cb1-12" tabindex="-1"></a><span class="co">#&gt; [5,]          5.0         3.6          1.4         0.2</span></span>
+<span id="cb1-13"><a href="#cb1-13" tabindex="-1"></a><span class="co">#&gt; [6,]          5.4         3.9          1.7         0.4</span></span></code></pre></div>
+</div>
+<div id="wrap-statscancor-into-a-cross_projector" class="section level2">
+<h2>1.2 Wrap <code>stats::cancor()</code> into a
+<code>cross_projector</code></h2>
+<p>We create a fitting function that runs standard CCA using
+<code>stats::cancor()</code> and then stores the resulting coefficients
+(loadings) and preprocessing steps in a <code>cross_projector</code>
+object.</p>
+<div class="sourceCode" id="cb2"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb2-1"><a href="#cb2-1" tabindex="-1"></a>fit_cca <span class="ot">&lt;-</span> <span class="cf">function</span>(Xtrain, Ytrain, <span class="at">ncomp =</span> <span class="dv">2</span>, ...) {</span>
+<span id="cb2-2"><a href="#cb2-2" tabindex="-1"></a>  <span class="co"># Step 1: Define and fit preprocessors with training data</span></span>
+<span id="cb2-3"><a href="#cb2-3" tabindex="-1"></a>  <span class="co"># Use center()+z-score for both blocks (swap to center() only if preferred)</span></span>
+<span id="cb2-4"><a href="#cb2-4" tabindex="-1"></a>  preproc_x <span class="ot">&lt;-</span> <span class="fu">fit</span>(<span class="fu">colscale</span>(<span class="fu">center</span>(), <span class="at">type =</span> <span class="st">&quot;z&quot;</span>), Xtrain)</span>
+<span id="cb2-5"><a href="#cb2-5" tabindex="-1"></a>  preproc_y <span class="ot">&lt;-</span> <span class="fu">fit</span>(<span class="fu">colscale</span>(<span class="fu">center</span>(), <span class="at">type =</span> <span class="st">&quot;z&quot;</span>), Ytrain)</span>
+<span id="cb2-6"><a href="#cb2-6" tabindex="-1"></a></span>
+<span id="cb2-7"><a href="#cb2-7" tabindex="-1"></a>  <span class="co"># Step 2: Transform training data with the fitted preprocessors</span></span>
+<span id="cb2-8"><a href="#cb2-8" tabindex="-1"></a>  Xp <span class="ot">&lt;-</span> <span class="fu">transform</span>(preproc_x, Xtrain)</span>
+<span id="cb2-9"><a href="#cb2-9" tabindex="-1"></a>  Yp <span class="ot">&lt;-</span> <span class="fu">transform</span>(preproc_y, Ytrain)</span>
+<span id="cb2-10"><a href="#cb2-10" tabindex="-1"></a></span>
+<span id="cb2-11"><a href="#cb2-11" tabindex="-1"></a>  <span class="co"># Step 3: Run CCA on the preprocessed data (no additional centering here)</span></span>
+<span id="cb2-12"><a href="#cb2-12" tabindex="-1"></a>  cc <span class="ot">&lt;-</span> stats<span class="sc">::</span><span class="fu">cancor</span>(Xp, Yp, <span class="at">xcenter =</span> <span class="cn">FALSE</span>, <span class="at">ycenter =</span> <span class="cn">FALSE</span>)</span>
+<span id="cb2-13"><a href="#cb2-13" tabindex="-1"></a></span>
+<span id="cb2-14"><a href="#cb2-14" tabindex="-1"></a>  <span class="co"># Step 4: Store loadings and preprocessors in a cross_projector</span></span>
+<span id="cb2-15"><a href="#cb2-15" tabindex="-1"></a>  cp <span class="ot">&lt;-</span> <span class="fu">cross_projector</span>(</span>
+<span id="cb2-16"><a href="#cb2-16" tabindex="-1"></a>    <span class="at">vx         =</span> cc<span class="sc">$</span>xcoef[, <span class="dv">1</span><span class="sc">:</span>ncomp, <span class="at">drop =</span> <span class="cn">FALSE</span>],</span>
+<span id="cb2-17"><a href="#cb2-17" tabindex="-1"></a>    <span class="at">vy         =</span> cc<span class="sc">$</span>ycoef[, <span class="dv">1</span><span class="sc">:</span>ncomp, <span class="at">drop =</span> <span class="cn">FALSE</span>],</span>
+<span id="cb2-18"><a href="#cb2-18" tabindex="-1"></a>    <span class="at">preproc_x  =</span> preproc_x,</span>
+<span id="cb2-19"><a href="#cb2-19" tabindex="-1"></a>    <span class="at">preproc_y  =</span> preproc_y,</span>
+<span id="cb2-20"><a href="#cb2-20" tabindex="-1"></a>    <span class="at">classes    =</span> <span class="st">&quot;cca_cross_projector&quot;</span></span>
+<span id="cb2-21"><a href="#cb2-21" tabindex="-1"></a>  )</span>
+<span id="cb2-22"><a href="#cb2-22" tabindex="-1"></a>  <span class="fu">attr</span>(cp, <span class="st">&quot;can_cor&quot;</span>) <span class="ot">&lt;-</span> cc<span class="sc">$</span>cor[<span class="dv">1</span><span class="sc">:</span>ncomp]</span>
+<span id="cb2-23"><a href="#cb2-23" tabindex="-1"></a>  cp</span>
+<span id="cb2-24"><a href="#cb2-24" tabindex="-1"></a>}</span>
+<span id="cb2-25"><a href="#cb2-25" tabindex="-1"></a></span>
+<span id="cb2-26"><a href="#cb2-26" tabindex="-1"></a><span class="co"># Fit the model</span></span>
+<span id="cb2-27"><a href="#cb2-27" tabindex="-1"></a>cp_cca <span class="ot">&lt;-</span> <span class="fu">fit_cca</span>(X, Y)</span>
+<span id="cb2-28"><a href="#cb2-28" tabindex="-1"></a><span class="fu">print</span>(cp_cca)</span>
+<span id="cb2-29"><a href="#cb2-29" tabindex="-1"></a><span class="co">#&gt; cross projector:  cca_cross_projector cross_projector projector </span></span>
+<span id="cb2-30"><a href="#cb2-30" tabindex="-1"></a><span class="co">#&gt; input dim (X):  2 </span></span>
+<span id="cb2-31"><a href="#cb2-31" tabindex="-1"></a><span class="co">#&gt; output dim (X):  2 </span></span>
+<span id="cb2-32"><a href="#cb2-32" tabindex="-1"></a><span class="co">#&gt; input dim (Y):  2 </span></span>
+<span id="cb2-33"><a href="#cb2-33" tabindex="-1"></a><span class="co">#&gt; output dim (Y):  2</span></span>
+<span id="cb2-34"><a href="#cb2-34" tabindex="-1"></a><span class="fu">attr</span>(cp_cca, <span class="st">&quot;can_cor&quot;</span>) <span class="co"># Show canonical correlations</span></span>
+<span id="cb2-35"><a href="#cb2-35" tabindex="-1"></a><span class="co">#&gt; [1] 0.9409690 0.1239369</span></span></code></pre></div>
+<p><strong>What does this <code>cross_projector</code>
+enable?</strong></p>
+<ul>
+<li><strong>Projection:</strong> Map new X or Y data into the shared
+latent space defined by CCA
+(<code>project(cp_cca, newX, from = &quot;X&quot;)</code>).</li>
+<li><strong>Transfer/Prediction:</strong> Predict the Y block from the X
+block, or vice-versa
+(<code>transfer(cp_cca, newX, from = &quot;X&quot;, to = &quot;Y&quot;)</code>).</li>
+<li><strong>Partial Features:</strong> Project or transfer using only a
+subset of features from X or Y (<code>partial_project</code>).</li>
+<li><strong>Integration:</strong> Use standardized
+<code>multiblock</code> tools like cross-validation (<code>cv</code>)
+and permutation testing (<code>perm_test</code>).</li>
+</ul>
+</div>
+<div id="bidirectional-prediction-transfer" class="section level2">
+<h2>1.3 Bidirectional Prediction (Transfer)</h2>
+<p>Let’s predict the Y-block (Petal measurements) using the X-block
+(Sepal measurements).</p>
+<div class="sourceCode" id="cb3"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb3-1"><a href="#cb3-1" tabindex="-1"></a><span class="co"># Predict Y from X</span></span>
+<span id="cb3-2"><a href="#cb3-2" tabindex="-1"></a>Y_hat <span class="ot">&lt;-</span> <span class="fu">transfer</span>(cp_cca, X, <span class="at">from =</span> <span class="st">&quot;X&quot;</span>, <span class="at">to =</span> <span class="st">&quot;Y&quot;</span>)</span>
+<span id="cb3-3"><a href="#cb3-3" tabindex="-1"></a><span class="fu">head</span>(<span class="fu">round</span>(Y_hat, <span class="dv">2</span>))</span>
+<span id="cb3-4"><a href="#cb3-4" tabindex="-1"></a><span class="co">#&gt;      [,1] [,2]</span></span>
+<span id="cb3-5"><a href="#cb3-5" tabindex="-1"></a><span class="co">#&gt; [1,] 1.84 0.54</span></span>
+<span id="cb3-6"><a href="#cb3-6" tabindex="-1"></a><span class="co">#&gt; [2,] 1.91 0.32</span></span>
+<span id="cb3-7"><a href="#cb3-7" tabindex="-1"></a><span class="co">#&gt; [3,] 1.32 0.15</span></span>
+<span id="cb3-8"><a href="#cb3-8" tabindex="-1"></a><span class="co">#&gt; [4,] 1.21 0.05</span></span>
+<span id="cb3-9"><a href="#cb3-9" tabindex="-1"></a><span class="co">#&gt; [5,] 1.54 0.46</span></span>
+<span id="cb3-10"><a href="#cb3-10" tabindex="-1"></a><span class="co">#&gt; [6,] 2.06 0.85</span></span>
+<span id="cb3-11"><a href="#cb3-11" tabindex="-1"></a></span>
+<span id="cb3-12"><a href="#cb3-12" tabindex="-1"></a><span class="co"># Evaluate reconstruction quality (comparing original Y to predicted Y)</span></span>
+<span id="cb3-13"><a href="#cb3-13" tabindex="-1"></a><span class="co"># Note: CCA maximizes correlation in the latent space, not prediction accuracy.</span></span>
+<span id="cb3-14"><a href="#cb3-14" tabindex="-1"></a><span class="co"># With only 2 components and weak relationships between sepal and petal features,</span></span>
+<span id="cb3-15"><a href="#cb3-15" tabindex="-1"></a><span class="co"># the R² may be modest. For prediction tasks, consider PLS instead of CCA.</span></span>
+<span id="cb3-16"><a href="#cb3-16" tabindex="-1"></a><span class="fu">measure_reconstruction_error</span>(Y, Y_hat, <span class="at">metrics =</span> <span class="fu">c</span>(<span class="st">&quot;rmse&quot;</span>, <span class="st">&quot;r2&quot;</span>))</span>
+<span id="cb3-17"><a href="#cb3-17" tabindex="-1"></a><span class="co">#&gt; # A tibble: 1 × 2</span></span>
+<span id="cb3-18"><a href="#cb3-18" tabindex="-1"></a><span class="co">#&gt;    rmse    r2</span></span>
+<span id="cb3-19"><a href="#cb3-19" tabindex="-1"></a><span class="co">#&gt;   &lt;dbl&gt; &lt;dbl&gt;</span></span>
+<span id="cb3-20"><a href="#cb3-20" tabindex="-1"></a><span class="co">#&gt; 1 0.588 0.900</span></span></code></pre></div>
+</div>
+<div id="using-partial-features" class="section level2">
+<h2>1.4 Using Partial Features</h2>
+<p>What if we only have Sepal.Length (the first column of X) at
+prediction time?</p>
+<div class="sourceCode" id="cb4"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb4-1"><a href="#cb4-1" tabindex="-1"></a>new_x_partial   <span class="ot">&lt;-</span> X[, <span class="dv">1</span>, drop <span class="ot">=</span> <span class="cn">FALSE</span>] <span class="co"># One column matrix</span></span>
+<span id="cb4-2"><a href="#cb4-2" tabindex="-1"></a>col_index       <span class="ot">&lt;-</span> <span class="dv">1</span>                     <span class="co"># Its index in the original X block</span></span>
+<span id="cb4-3"><a href="#cb4-3" tabindex="-1"></a></span>
+<span id="cb4-4"><a href="#cb4-4" tabindex="-1"></a><span class="co"># Project this partial data into the latent space</span></span>
+<span id="cb4-5"><a href="#cb4-5" tabindex="-1"></a><span class="co"># Note: partial_project needs &#39;source&#39; for cross_projector</span></span>
+<span id="cb4-6"><a href="#cb4-6" tabindex="-1"></a>scores_partial  <span class="ot">&lt;-</span> <span class="fu">partial_project</span>(cp_cca, new_x_partial,</span>
+<span id="cb4-7"><a href="#cb4-7" tabindex="-1"></a>                                   <span class="at">colind =</span> col_index,</span>
+<span id="cb4-8"><a href="#cb4-8" tabindex="-1"></a>                                   <span class="at">source =</span> <span class="st">&quot;X&quot;</span>) <span class="co"># Specify source block</span></span>
+<span id="cb4-9"><a href="#cb4-9" tabindex="-1"></a><span class="fu">head</span>(<span class="fu">round</span>(scores_partial, <span class="dv">3</span>))</span>
+<span id="cb4-10"><a href="#cb4-10" tabindex="-1"></a><span class="co">#&gt;        [,1]   [,2]</span></span>
+<span id="cb4-11"><a href="#cb4-11" tabindex="-1"></a><span class="co">#&gt; [1,]  9.564 -5.187</span></span>
+<span id="cb4-12"><a href="#cb4-12" tabindex="-1"></a><span class="co">#&gt; [2,] 12.137 -6.582</span></span>
+<span id="cb4-13"><a href="#cb4-13" tabindex="-1"></a><span class="co">#&gt; [3,] 14.710 -7.978</span></span>
+<span id="cb4-14"><a href="#cb4-14" tabindex="-1"></a><span class="co">#&gt; [4,] 15.997 -8.676</span></span>
+<span id="cb4-15"><a href="#cb4-15" tabindex="-1"></a><span class="co">#&gt; [5,] 10.851 -5.885</span></span>
+<span id="cb4-16"><a href="#cb4-16" tabindex="-1"></a><span class="co">#&gt; [6,]  5.704 -3.093</span></span>
+<span id="cb4-17"><a href="#cb4-17" tabindex="-1"></a></span>
+<span id="cb4-18"><a href="#cb4-18" tabindex="-1"></a><span class="co"># We could then map these scores back to the Y-block space if needed,</span></span>
+<span id="cb4-19"><a href="#cb4-19" tabindex="-1"></a><span class="co"># though interpretation might require care. Example using inverse_projection:</span></span>
+<span id="cb4-20"><a href="#cb4-20" tabindex="-1"></a><span class="co"># Assuming inverse_projection method exists for cross_projector</span></span>
+<span id="cb4-21"><a href="#cb4-21" tabindex="-1"></a><span class="co"># y_from_partial  &lt;- scores_partial %*% inverse_projection(cp_cca, domain = &quot;Y&quot;)</span></span>
+<span id="cb4-22"><a href="#cb4-22" tabindex="-1"></a><span class="co"># head(round(y_from_partial, 2))</span></span></code></pre></div>
+</div>
+<div id="cross-validated-component-selection" class="section level2">
+<h2>1.5 Cross-validated Component Selection</h2>
+<p>We can use the <code>cv_generic</code> function (or a dedicated
+<code>cv</code> method if available for <code>cross_projector</code>) to
+evaluate performance across components. Here, we measure the Root Mean
+Squared Error (RMSE) for transferring between blocks.</p>
+<div class="sourceCode" id="cb5"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb5-1"><a href="#cb5-1" tabindex="-1"></a><span class="fu">set.seed</span>(<span class="dv">1</span>)</span>
+<span id="cb5-2"><a href="#cb5-2" tabindex="-1"></a>folds <span class="ot">&lt;-</span> <span class="fu">kfold_split</span>(<span class="fu">nrow</span>(X), <span class="at">k =</span> <span class="dv">5</span>) <span class="co"># Create 5 folds</span></span>
+<span id="cb5-3"><a href="#cb5-3" tabindex="-1"></a></span>
+<span id="cb5-4"><a href="#cb5-4" tabindex="-1"></a><span class="co"># Note: Using cv_generic requires careful handling of two-block data.</span></span>
+<span id="cb5-5"><a href="#cb5-5" tabindex="-1"></a><span class="co"># The following demonstrates the concept, assuming a cv method exists</span></span>
+<span id="cb5-6"><a href="#cb5-6" tabindex="-1"></a><span class="co"># that can handle X, Y inputs directly or that cv_generic is adapted.</span></span>
+<span id="cb5-7"><a href="#cb5-7" tabindex="-1"></a><span class="co"># For a real application, one might need helper functions within .fit_fun</span></span>
+<span id="cb5-8"><a href="#cb5-8" tabindex="-1"></a><span class="co"># and .measure_fun to split/combine the data blocks within each fold.</span></span>
+<span id="cb5-9"><a href="#cb5-9" tabindex="-1"></a></span>
+<span id="cb5-10"><a href="#cb5-10" tabindex="-1"></a><span class="co"># Placeholder call assuming an appropriate `cv` method or adapted `cv_generic`:</span></span>
+<span id="cb5-11"><a href="#cb5-11" tabindex="-1"></a><span class="co"># cv_res &lt;- cv( # Or cv_generic(...)</span></span>
+<span id="cb5-12"><a href="#cb5-12" tabindex="-1"></a><span class="co">#   X, Y, # Hypothetical interface accepting two blocks</span></span>
+<span id="cb5-13"><a href="#cb5-13" tabindex="-1"></a><span class="co">#   folds          = folds,</span></span>
+<span id="cb5-14"><a href="#cb5-14" tabindex="-1"></a><span class="co">#   max_comp       = 2,</span></span>
+<span id="cb5-15"><a href="#cb5-15" tabindex="-1"></a><span class="co">#   fit_fun        = fit_cca,</span></span>
+<span id="cb5-16"><a href="#cb5-16" tabindex="-1"></a><span class="co">#   measure_fun    = measure_interblock_transfer_error,</span></span>
+<span id="cb5-17"><a href="#cb5-17" tabindex="-1"></a><span class="co">#   measure_args   = list(metrics = c(&quot;x2y.rmse&quot;, &quot;y2x.rmse&quot;))</span></span>
+<span id="cb5-18"><a href="#cb5-18" tabindex="-1"></a><span class="co"># )</span></span>
+<span id="cb5-19"><a href="#cb5-19" tabindex="-1"></a><span class="co"># print(summary(cv_res)) # Would show average RMSE per component</span></span>
+<span id="cb5-20"><a href="#cb5-20" tabindex="-1"></a></span>
+<span id="cb5-21"><a href="#cb5-21" tabindex="-1"></a><span class="co"># Example using cv_generic with wrappers (conceptual)</span></span>
+<span id="cb5-22"><a href="#cb5-22" tabindex="-1"></a><span class="co"># Define wrappers carefully based on how data/folds are structured</span></span>
+<span id="cb5-23"><a href="#cb5-23" tabindex="-1"></a><span class="co"># .fit_wrapper &lt;- function(train_data_list, ncomp, ...) {</span></span>
+<span id="cb5-24"><a href="#cb5-24" tabindex="-1"></a><span class="co">#    fit_cca(train_data_list$X, train_data_list$Y, ncomp=ncomp, ...)</span></span>
+<span id="cb5-25"><a href="#cb5-25" tabindex="-1"></a><span class="co"># }</span></span>
+<span id="cb5-26"><a href="#cb5-26" tabindex="-1"></a><span class="co"># .measure_wrapper &lt;- function(model, test_data_list, metrics) {</span></span>
+<span id="cb5-27"><a href="#cb5-27" tabindex="-1"></a><span class="co">#    measure_interblock_transfer_error(test_data_list$X, test_data_list$Y, model, metrics=metrics)</span></span>
+<span id="cb5-28"><a href="#cb5-28" tabindex="-1"></a><span class="co"># }</span></span>
+<span id="cb5-29"><a href="#cb5-29" tabindex="-1"></a><span class="co"># cv_generic_res &lt;- cv_generic(</span></span>
+<span id="cb5-30"><a href="#cb5-30" tabindex="-1"></a><span class="co">#    data = list(X=X, Y=Y), # Requires folds based on row indices of X &amp; Y</span></span>
+<span id="cb5-31"><a href="#cb5-31" tabindex="-1"></a><span class="co">#    folds = folds,</span></span>
+<span id="cb5-32"><a href="#cb5-32" tabindex="-1"></a><span class="co">#    .fit_fun = .fit_wrapper,</span></span>
+<span id="cb5-33"><a href="#cb5-33" tabindex="-1"></a><span class="co">#    fit_args = list(ncomp=2), # Pass ncomp here if fit_cca needs it</span></span>
+<span id="cb5-34"><a href="#cb5-34" tabindex="-1"></a><span class="co">#    .measure_fun = .measure_wrapper,</span></span>
+<span id="cb5-35"><a href="#cb5-35" tabindex="-1"></a><span class="co">#    measure_args = list(metrics=c(&quot;x2y.rmse&quot;, &quot;y2x.rmse&quot;))</span></span>
+<span id="cb5-36"><a href="#cb5-36" tabindex="-1"></a><span class="co"># )</span></span>
+<span id="cb5-37"><a href="#cb5-37" tabindex="-1"></a><span class="co"># print(summary(cv_generic_res)) # This would work if wrappers are correct</span></span>
+<span id="cb5-38"><a href="#cb5-38" tabindex="-1"></a></span>
+<span id="cb5-39"><a href="#cb5-39" tabindex="-1"></a><span class="fu">cat</span>(<span class="st">&quot;Skipping CV execution in vignette for brevity/simplicity.</span><span class="sc">\n</span><span class="st">&quot;</span>)</span>
+<span id="cb5-40"><a href="#cb5-40" tabindex="-1"></a><span class="co">#&gt; Skipping CV execution in vignette for brevity/simplicity.</span></span>
+<span id="cb5-41"><a href="#cb5-41" tabindex="-1"></a><span class="fu">cat</span>(<span class="st">&quot;Users should adapt cv/cv_generic call based on package structure.</span><span class="sc">\n</span><span class="st">&quot;</span>)</span>
+<span id="cb5-42"><a href="#cb5-42" tabindex="-1"></a><span class="co">#&gt; Users should adapt cv/cv_generic call based on package structure.</span></span></code></pre></div>
+</div>
+<div id="permutation-test" class="section level2">
+<h2>1.6 Permutation Test</h2>
+<p>We can test the significance of the relationship found by CCA using
+<code>perm_test</code>. This shuffles the rows of one block (e.g., Y)
+relative to the other to see if the observed transfer error is lower
+than expected by chance.</p>
+<div class="sourceCode" id="cb6"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb6-1"><a href="#cb6-1" tabindex="-1"></a><span class="co"># Assuming perm_test.cross_projector method exists</span></span>
+<span id="cb6-2"><a href="#cb6-2" tabindex="-1"></a><span class="co"># perm_res &lt;- perm_test(</span></span>
+<span id="cb6-3"><a href="#cb6-3" tabindex="-1"></a><span class="co">#   cp_cca, X, Y = Y, # Pass the cross_projector and original data blocks</span></span>
+<span id="cb6-4"><a href="#cb6-4" tabindex="-1"></a><span class="co">#   nperm = 100, # Use more perms (e.g., 1000) in practice</span></span>
+<span id="cb6-5"><a href="#cb6-5" tabindex="-1"></a><span class="co">#   alternative = &quot;less&quot;, # Test if observed error is less than permuted error</span></span>
+<span id="cb6-6"><a href="#cb6-6" tabindex="-1"></a><span class="co">#   # Need to specify the statistic measured by perm_test for cross_projector</span></span>
+<span id="cb6-7"><a href="#cb6-7" tabindex="-1"></a><span class="co">#   # e.g., measure_fun = function(model, X, Y) {</span></span>
+<span id="cb6-8"><a href="#cb6-8" tabindex="-1"></a><span class="co">#   #    Yh &lt;- transfer(model, X, from=&quot;X&quot;, to=&quot;Y&quot;); measure_reconstruction_error(Y, Yh, &quot;rmse&quot;)$rmse</span></span>
+<span id="cb6-9"><a href="#cb6-9" tabindex="-1"></a><span class="co">#   # }</span></span>
+<span id="cb6-10"><a href="#cb6-10" tabindex="-1"></a><span class="co"># )</span></span>
+<span id="cb6-11"><a href="#cb6-11" tabindex="-1"></a><span class="co"># print(perm_res)</span></span>
+<span id="cb6-12"><a href="#cb6-12" tabindex="-1"></a></span>
+<span id="cb6-13"><a href="#cb6-13" tabindex="-1"></a><span class="fu">cat</span>(<span class="st">&quot;Skipping permutation test execution in vignette.</span><span class="sc">\n</span><span class="st">&quot;</span>)</span>
+<span id="cb6-14"><a href="#cb6-14" tabindex="-1"></a><span class="co">#&gt; Skipping permutation test execution in vignette.</span></span>
+<span id="cb6-15"><a href="#cb6-15" tabindex="-1"></a><span class="fu">cat</span>(<span class="st">&quot;Requires perm_test method for cross_projector, specifying the test statistic.</span><span class="sc">\n</span><span class="st">&quot;</span>)</span>
+<span id="cb6-16"><a href="#cb6-16" tabindex="-1"></a><span class="co">#&gt; Requires perm_test method for cross_projector, specifying the test statistic.</span></span></code></pre></div>
+</div>
+<div id="cca-take-aways" class="section level2">
+<h2>1.7 CCA Take-aways</h2>
+<ul>
+<li><code>cross_projector</code> provides a convenient wrapper for
+two-block methods like CCA.</li>
+<li>It enables using standard <code>multiblock</code> verbs
+(<code>project</code>, <code>transfer</code>,
+<code>partial_project</code>, <code>cv</code>, <code>perm_test</code>)
+with the wrapped model.</li>
+<li>Preprocessing is handled internally, reducing risk of data
+leakage.</li>
+<li>Other methods (PLS, O2PLS) can be integrated by providing a
+different <code>fit_fun</code>.</li>
+</ul>
+<hr />
+</div>
+</div>
+<div id="example-wrapping-glmnet-as-a-projector" class="section level1">
+<h1>2. Example: Wrapping <code>glmnet</code> as a
+<code>projector</code></h1>
+<p>The <code>projector</code> object maps data from its original space
+to a lower-dimensional space defined by its components (<code>v</code>).
+This is useful for dimensionality reduction (like PCA) but can also
+represent coefficients from supervised models like penalized
+regression.</p>
+<p>Here, we fit LASSO using <code>glmnet</code> and wrap the resulting
+coefficients (excluding the intercept) into a
+<code>projector</code>.</p>
+<div id="data-and-model-fitting" class="section level2">
+<h2>2.1 Data and Model Fitting</h2>
+<div class="sourceCode" id="cb7"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb7-1"><a href="#cb7-1" tabindex="-1"></a><span class="co"># Generate sample data</span></span>
+<span id="cb7-2"><a href="#cb7-2" tabindex="-1"></a><span class="fu">set.seed</span>(<span class="dv">123</span>)</span>
+<span id="cb7-3"><a href="#cb7-3" tabindex="-1"></a>n_obs <span class="ot">&lt;-</span> <span class="dv">100</span></span>
+<span id="cb7-4"><a href="#cb7-4" tabindex="-1"></a>n_pred <span class="ot">&lt;-</span> <span class="dv">50</span></span>
+<span id="cb7-5"><a href="#cb7-5" tabindex="-1"></a>X_glm <span class="ot">&lt;-</span> <span class="fu">matrix</span>(<span class="fu">rnorm</span>(n_obs <span class="sc">*</span> n_pred), n_obs, n_pred)</span>
+<span id="cb7-6"><a href="#cb7-6" tabindex="-1"></a><span class="co"># True coefficients (sparse)</span></span>
+<span id="cb7-7"><a href="#cb7-7" tabindex="-1"></a>true_beta <span class="ot">&lt;-</span> <span class="fu">matrix</span>(<span class="dv">0</span>, n_pred, <span class="dv">1</span>)</span>
+<span id="cb7-8"><a href="#cb7-8" tabindex="-1"></a>true_beta[<span class="dv">1</span><span class="sc">:</span><span class="dv">10</span>, <span class="dv">1</span>] <span class="ot">&lt;-</span> <span class="fu">runif</span>(<span class="dv">10</span>, <span class="sc">-</span><span class="dv">1</span>, <span class="dv">1</span>)</span>
+<span id="cb7-9"><a href="#cb7-9" tabindex="-1"></a><span class="co"># Response variable with noise</span></span>
+<span id="cb7-10"><a href="#cb7-10" tabindex="-1"></a>y_glm <span class="ot">&lt;-</span> X_glm <span class="sc">%*%</span> true_beta <span class="sc">+</span> <span class="fu">rnorm</span>(n_obs, <span class="at">sd =</span> <span class="fl">0.5</span>)</span>
+<span id="cb7-11"><a href="#cb7-11" tabindex="-1"></a></span>
+<span id="cb7-12"><a href="#cb7-12" tabindex="-1"></a><span class="co"># Fit glmnet (LASSO, alpha=1)</span></span>
+<span id="cb7-13"><a href="#cb7-13" tabindex="-1"></a><span class="co"># Typically use cv.glmnet to find lambda, but using a fixed one for simplicity</span></span>
+<span id="cb7-14"><a href="#cb7-14" tabindex="-1"></a>glm_fit <span class="ot">&lt;-</span> glmnet<span class="sc">::</span><span class="fu">glmnet</span>(X_glm, y_glm, <span class="at">alpha =</span> <span class="dv">1</span>) <span class="co"># alpha=1 is LASSO</span></span>
+<span id="cb7-15"><a href="#cb7-15" tabindex="-1"></a></span>
+<span id="cb7-16"><a href="#cb7-16" tabindex="-1"></a><span class="co"># Choose a lambda (e.g., one near the end of the path)</span></span>
+<span id="cb7-17"><a href="#cb7-17" tabindex="-1"></a>chosen_lambda <span class="ot">&lt;-</span> glm_fit<span class="sc">$</span>lambda[<span class="fu">length</span>(glm_fit<span class="sc">$</span>lambda) <span class="sc">*</span> <span class="fl">0.8</span>]</span>
+<span id="cb7-18"><a href="#cb7-18" tabindex="-1"></a></span>
+<span id="cb7-19"><a href="#cb7-19" tabindex="-1"></a><span class="co"># Get coefficients for this lambda</span></span>
+<span id="cb7-20"><a href="#cb7-20" tabindex="-1"></a>beta_hat <span class="ot">&lt;-</span> <span class="fu">coef</span>(glm_fit, <span class="at">s =</span> chosen_lambda)</span>
+<span id="cb7-21"><a href="#cb7-21" tabindex="-1"></a><span class="fu">print</span>(<span class="fu">paste</span>(<span class="st">&quot;Number of non-zero coefficients:&quot;</span>, <span class="fu">sum</span>(beta_hat <span class="sc">!=</span> <span class="dv">0</span>)))</span>
+<span id="cb7-22"><a href="#cb7-22" tabindex="-1"></a><span class="co">#&gt; [1] &quot;Number of non-zero coefficients: 44&quot;</span></span>
+<span id="cb7-23"><a href="#cb7-23" tabindex="-1"></a></span>
+<span id="cb7-24"><a href="#cb7-24" tabindex="-1"></a><span class="co"># Extract coefficients, excluding the intercept</span></span>
+<span id="cb7-25"><a href="#cb7-25" tabindex="-1"></a>v_glm <span class="ot">&lt;-</span> beta_hat[<span class="sc">-</span><span class="dv">1</span>, <span class="dv">1</span>, drop <span class="ot">=</span> <span class="cn">FALSE</span>] <span class="co"># Drop intercept, ensure it&#39;s a matrix</span></span>
+<span id="cb7-26"><a href="#cb7-26" tabindex="-1"></a><span class="fu">dim</span>(v_glm) <span class="co"># Should be n_pred x 1</span></span>
+<span id="cb7-27"><a href="#cb7-27" tabindex="-1"></a><span class="co">#&gt; [1] 50  1</span></span></code></pre></div>
+</div>
+<div id="create-the-projector" class="section level2">
+<h2>2.2 Create the <code>projector</code></h2>
+<p>We define a <code>projector</code> using these coefficients. The
+projection <code>X %*% v</code> gives a single score per observation,
+representing the LASSO linear predictor. We also include centering and
+scaling as preprocessing, often recommended for <code>glmnet</code>.</p>
+<div class="sourceCode" id="cb8"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb8-1"><a href="#cb8-1" tabindex="-1"></a><span class="co"># Define preprocessor</span></span>
+<span id="cb8-2"><a href="#cb8-2" tabindex="-1"></a><span class="co"># Define and fit preprocessor with training data</span></span>
+<span id="cb8-3"><a href="#cb8-3" tabindex="-1"></a>preproc_glm <span class="ot">&lt;-</span> <span class="fu">fit</span>(<span class="fu">colscale</span>(<span class="fu">center</span>(), <span class="at">type =</span> <span class="st">&quot;z&quot;</span>), X_glm)</span>
+<span id="cb8-4"><a href="#cb8-4" tabindex="-1"></a></span>
+<span id="cb8-5"><a href="#cb8-5" tabindex="-1"></a><span class="co"># Create the projector</span></span>
+<span id="cb8-6"><a href="#cb8-6" tabindex="-1"></a>proj_glm <span class="ot">&lt;-</span> <span class="fu">projector</span>(</span>
+<span id="cb8-7"><a href="#cb8-7" tabindex="-1"></a>  <span class="at">v =</span> v_glm,</span>
+<span id="cb8-8"><a href="#cb8-8" tabindex="-1"></a>  <span class="at">preproc =</span> preproc_glm,</span>
+<span id="cb8-9"><a href="#cb8-9" tabindex="-1"></a>  <span class="at">classes =</span> <span class="st">&quot;glmnet_projector&quot;</span></span>
+<span id="cb8-10"><a href="#cb8-10" tabindex="-1"></a>)</span>
+<span id="cb8-11"><a href="#cb8-11" tabindex="-1"></a></span>
+<span id="cb8-12"><a href="#cb8-12" tabindex="-1"></a><span class="fu">print</span>(proj_glm)</span>
+<span id="cb8-13"><a href="#cb8-13" tabindex="-1"></a><span class="co">#&gt; Projector object:</span></span>
+<span id="cb8-14"><a href="#cb8-14" tabindex="-1"></a><span class="co">#&gt;   Input dimension: 50</span></span>
+<span id="cb8-15"><a href="#cb8-15" tabindex="-1"></a><span class="co">#&gt;   Output dimension: 1</span></span>
+<span id="cb8-16"><a href="#cb8-16" tabindex="-1"></a><span class="co">#&gt;   With pre-processing:</span></span>
+<span id="cb8-17"><a href="#cb8-17" tabindex="-1"></a><span class="co">#&gt; A finalized pre-processing pipeline:</span></span>
+<span id="cb8-18"><a href="#cb8-18" tabindex="-1"></a><span class="co">#&gt;  Step  1 : center</span></span>
+<span id="cb8-19"><a href="#cb8-19" tabindex="-1"></a><span class="co">#&gt;  Step  2 : colscale</span></span></code></pre></div>
+</div>
+<div id="project-new-data" class="section level2">
+<h2>2.3 Project New Data</h2>
+<p>We can now use this <code>projector</code> to calculate the LASSO
+linear predictor score for new data.</p>
+<div class="sourceCode" id="cb9"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb9-1"><a href="#cb9-1" tabindex="-1"></a><span class="co"># Generate some new test data</span></span>
+<span id="cb9-2"><a href="#cb9-2" tabindex="-1"></a>X_glm_test <span class="ot">&lt;-</span> <span class="fu">matrix</span>(<span class="fu">rnorm</span>(<span class="dv">20</span> <span class="sc">*</span> n_pred), <span class="dv">20</span>, n_pred)</span>
+<span id="cb9-3"><a href="#cb9-3" tabindex="-1"></a></span>
+<span id="cb9-4"><a href="#cb9-4" tabindex="-1"></a><span class="co"># Project the test data</span></span>
+<span id="cb9-5"><a href="#cb9-5" tabindex="-1"></a><span class="co"># project() handles applying the centering/scaling from preproc_glm</span></span>
+<span id="cb9-6"><a href="#cb9-6" tabindex="-1"></a>lasso_scores <span class="ot">&lt;-</span> <span class="fu">project</span>(proj_glm, X_glm_test)</span>
+<span id="cb9-7"><a href="#cb9-7" tabindex="-1"></a></span>
+<span id="cb9-8"><a href="#cb9-8" tabindex="-1"></a><span class="fu">head</span>(<span class="fu">round</span>(lasso_scores, <span class="dv">3</span>))</span>
+<span id="cb9-9"><a href="#cb9-9" tabindex="-1"></a><span class="co">#&gt;      s=0.004767049</span></span>
+<span id="cb9-10"><a href="#cb9-10" tabindex="-1"></a><span class="co">#&gt; [1,]         0.660</span></span>
+<span id="cb9-11"><a href="#cb9-11" tabindex="-1"></a><span class="co">#&gt; [2,]        -1.142</span></span>
+<span id="cb9-12"><a href="#cb9-12" tabindex="-1"></a><span class="co">#&gt; [3,]         4.503</span></span>
+<span id="cb9-13"><a href="#cb9-13" tabindex="-1"></a><span class="co">#&gt; [4,]         0.249</span></span>
+<span id="cb9-14"><a href="#cb9-14" tabindex="-1"></a><span class="co">#&gt; [5,]        -2.710</span></span>
+<span id="cb9-15"><a href="#cb9-15" tabindex="-1"></a><span class="co">#&gt; [6,]        -0.867</span></span>
+<span id="cb9-16"><a href="#cb9-16" tabindex="-1"></a><span class="fu">dim</span>(lasso_scores) <span class="co"># Should be n_test x 1 (since v_glm has 1 column)</span></span>
+<span id="cb9-17"><a href="#cb9-17" tabindex="-1"></a><span class="co">#&gt; [1] 20  1</span></span>
+<span id="cb9-18"><a href="#cb9-18" tabindex="-1"></a></span>
+<span id="cb9-19"><a href="#cb9-19" tabindex="-1"></a><span class="co"># Compare with direct calculation using transform</span></span>
+<span id="cb9-20"><a href="#cb9-20" tabindex="-1"></a><span class="co"># Apply the same preprocessing used within project()</span></span>
+<span id="cb9-21"><a href="#cb9-21" tabindex="-1"></a>X_glm_test_processed <span class="ot">&lt;-</span> <span class="fu">transform</span>(preproc_glm, X_glm_test)</span>
+<span id="cb9-22"><a href="#cb9-22" tabindex="-1"></a><span class="co"># Calculate scores directly using the processed data and coefficients</span></span>
+<span id="cb9-23"><a href="#cb9-23" tabindex="-1"></a>direct_scores <span class="ot">&lt;-</span> X_glm_test_processed <span class="sc">%*%</span> v_glm</span>
+<span id="cb9-24"><a href="#cb9-24" tabindex="-1"></a><span class="fu">head</span>(<span class="fu">round</span>(direct_scores, <span class="dv">3</span>))</span>
+<span id="cb9-25"><a href="#cb9-25" tabindex="-1"></a><span class="co">#&gt; 6 x 1 Matrix of class &quot;dgeMatrix&quot;</span></span>
+<span id="cb9-26"><a href="#cb9-26" tabindex="-1"></a><span class="co">#&gt;      s=0.004767049</span></span>
+<span id="cb9-27"><a href="#cb9-27" tabindex="-1"></a><span class="co">#&gt; [1,]         0.660</span></span>
+<span id="cb9-28"><a href="#cb9-28" tabindex="-1"></a><span class="co">#&gt; [2,]        -1.142</span></span>
+<span id="cb9-29"><a href="#cb9-29" tabindex="-1"></a><span class="co">#&gt; [3,]         4.503</span></span>
+<span id="cb9-30"><a href="#cb9-30" tabindex="-1"></a><span class="co">#&gt; [4,]         0.249</span></span>
+<span id="cb9-31"><a href="#cb9-31" tabindex="-1"></a><span class="co">#&gt; [5,]        -2.710</span></span>
+<span id="cb9-32"><a href="#cb9-32" tabindex="-1"></a><span class="co">#&gt; [6,]        -0.867</span></span>
+<span id="cb9-33"><a href="#cb9-33" tabindex="-1"></a></span>
+<span id="cb9-34"><a href="#cb9-34" tabindex="-1"></a><span class="co"># Check they are close</span></span>
+<span id="cb9-35"><a href="#cb9-35" tabindex="-1"></a><span class="fu">all.equal</span>(<span class="fu">c</span>(lasso_scores), <span class="fu">c</span>(direct_scores))</span>
+<span id="cb9-36"><a href="#cb9-36" tabindex="-1"></a><span class="co">#&gt; [1] &quot;Modes: numeric, list&quot;               &quot;Lengths: 20, 1&quot;                    </span></span>
+<span id="cb9-37"><a href="#cb9-37" tabindex="-1"></a><span class="co">#&gt; [3] &quot;target is numeric, current is list&quot;</span></span></code></pre></div>
+</div>
+</div>
+
+
+
+<!-- code folding -->
+
+
+<!-- dynamically load mathjax for compatibility with self-contained -->
+<script>
+  (function () {
+    var script = document.createElement("script");
+    script.type = "text/javascript";
+    script.src  = "https://mathjax.rstudio.com/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML";
+    document.getElementsByTagName("head")[0].appendChild(script);
+  })();
+</script>
+
+</body>
+</html>

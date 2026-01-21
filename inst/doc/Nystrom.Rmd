@@ -1,0 +1,165 @@
+---
+title: 'Fast Matrix Approximation with the Nyström Method'
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Fast Matrix Approximation with the Nyström Method}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+params:
+  family: red
+css: albers.css
+resource_files:
+- albers.css
+- albers.js
+includes:
+  in_header: |-
+    <script src="albers.js"></script>
+    <script>document.addEventListener('DOMContentLoaded',()=>document.body.classList.add('palette-red'));</script>
+
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(collapse = TRUE, comment = "#>", fig.width=6, fig.height=4)
+library(multivarious)
+library(stats)
+```
+
+## The Scalability Problem
+
+When working with similarity or kernel matrices, the computational cost grows rapidly:
+
+- **Memory**: O(N²) to store an N × N matrix
+- **Time**: O(N³) for eigendecomposition
+
+For N = 10,000, that's 100 million entries and billions of operations. For N = 100,000, it becomes intractable.
+
+## The Nyström Approximation
+
+The Nyström method provides a fast approximation by using only a subset of "landmark" points:
+
+1. Select m << N landmark points
+2. Compute the m × m matrix between landmarks
+3. Compute the N × m matrix between all points and landmarks
+4. Use these to approximate the full eigendecomposition
+
+This reduces complexity from O(N³) to O(Nm²) — a massive speedup when m is small.
+
+## Quick Start
+
+```{r quick_start}
+set.seed(42)
+N <- 1000
+p <- 50
+X <- matrix(rnorm(N * p), N, p)
+
+# Nyström approximation with linear kernel (default)
+# Uses only 100 landmarks instead of all 1000 points
+ny_fit <- nystrom_approx(
+
+  X,
+  ncomp = 10,
+  nlandmarks = 100,
+  preproc = center()
+)
+
+print(ny_fit)
+
+# Standard bi_projector interface
+head(scores(ny_fit))
+```
+
+## Specifying a Kernel Function
+
+By default, `nystrom_approx()` uses a linear kernel. You can provide any kernel function:
+```{r custom_kernel}
+# RBF (Gaussian) kernel
+rbf_kernel <- function(X, Y = NULL, sigma = 1) {
+  if (is.null(Y)) Y <- X
+
+  sumX2 <- rowSums(X^2)
+  sumY2 <- rowSums(Y^2)
+  sqdist <- outer(sumX2, sumY2, `+`) - 2 * tcrossprod(X, Y)
+  sqdist[sqdist < 0] <- 0
+
+  exp(-sqdist / (2 * sigma^2))
+}
+
+ny_rbf <- nystrom_approx(
+  X,
+  kernel_func = rbf_kernel,
+  ncomp = 10,
+  nlandmarks = 100
+)
+```
+
+## Projecting New Data
+
+The result is a `bi_projector`, so you can project new observations:
+
+```{r projection}
+X_new <- matrix(rnorm(50 * p), 50, p)
+new_scores <- project(ny_fit, X_new)
+dim(new_scores)
+```
+
+## Double Nyström for Extra Speed
+
+For very large datasets, the "double" method applies the approximation twice, reducing complexity further:
+
+```{r double_nystrom}
+# Standard method
+system.time(
+
+  ny_standard <- nystrom_approx(X, ncomp = 5, nlandmarks = 200, method = "standard")
+)
+
+# Double Nyström (faster with intermediate rank l)
+system.time(
+  ny_double <- nystrom_approx(X, ncomp = 5, nlandmarks = 200, method = "double", l = 50)
+)
+```
+
+## Choosing Parameters
+
+### Number of Landmarks
+
+| Dataset Size | Suggested Landmarks | Notes |
+|-------------|-------------------|-------|
+| < 1,000     | 50–200            | Larger fraction acceptable |
+| 1,000–10,000| 200–500           | Good accuracy/speed balance |
+| > 10,000    | 500–2,000         | Consider Double Nyström |
+
+### Method Selection
+
+- **Standard**: Higher accuracy, use when m < 2,000
+- **Double**: Faster for very large m, adds intermediate rank parameter `l`
+
+## Technical Details
+
+<details>
+<summary>Click for mathematical details</summary>
+
+The Nyström approximation uses the fact that a positive semi-definite matrix K can be approximated as:
+
+$$K \approx K_{nm} K_{mm}^{-1} K_{mn}$$
+
+where:
+- $K_{mm}$ is the m × m matrix between landmarks
+- $K_{nm}$ is the N × m matrix between all points and landmarks
+
+The eigendecomposition of this approximation can be computed efficiently:
+1. Compute eigendecomposition of $K_{mm} = U_m \Lambda_m U_m^T$
+2. Approximate eigenvectors of K as: $U \approx K_{nm} U_m \Lambda_m^{-1/2}$
+
+Double Nyström applies this approximation recursively, reducing complexity from O(Nm² + m³) to O(Nml + l³) where l << m.
+
+</details>
+
+## References
+
+- Williams, C. K. I., & Seeger, M. (2001). Using the Nyström Method to Speed Up Kernel Machines. *NIPS*.
+- Lim, D., Jin, R., & Zhang, L. (2015). An Efficient and Accurate Nyström Scheme for Large-Scale Data Sets. *AAAI*.
+
+## See Also
+- `pca()` for standard PCA on smaller datasets
+- `svd_wrapper()` for various SVD backends

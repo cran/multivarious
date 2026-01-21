@@ -20,7 +20,8 @@ svd_wrapper(
 
 \item{ncomp}{the number of components to estimate (default: min(dim(X)))}
 
-\item{preproc}{the pre-processor to apply on the input matrix (e.g., \code{center()}, \code{standardize()}, \code{pass()})}
+\item{preproc}{the pre-processor to apply on the input matrix (e.g., \code{center()}, \code{standardize()}, \code{pass()})
+Can be a \code{prepper} object or a pre-processing function.}
 
 \item{method}{the SVD method to use: 'base', 'fast', 'irlba', 'propack', 'rsvd', or 'svds'}
 
@@ -28,12 +29,12 @@ svd_wrapper(
 
 \item{p}{parameter passed to method \code{rsvd} (default: 10)}
 
-\item{tol}{minimum eigenvalue magnitude, otherwise component is dropped (default: .Machine$double.eps)}
+\item{tol}{minimum relative tolerance for dropping singular values (compared to the largest). Default: \code{.Machine$double.eps}.}
 
 \item{...}{extra arguments passed to the selected SVD function}
 }
 \value{
-an SVD object that extends \code{projector}
+an SVD object that extends \code{bi_projector}
 }
 \description{
 Computes the singular value decomposition of a matrix using one of the specified methods.
@@ -42,7 +43,7 @@ It is designed to be an easy-to-use wrapper for various SVD methods available in
 \examples{
 # Load iris dataset and select the first four columns
 data(iris)
-X <- iris[, 1:4]
+X <- as.matrix(iris[, 1:4])
 
 # Compute SVD using the base method and 3 components
 fit <- svd_wrapper(X, ncomp = 3, preproc = center(), method = "base")

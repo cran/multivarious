@@ -1,0 +1,308 @@
+params <-
+list(family = "red")
+
+## ----setup, include=FALSE-----------------------------------------------------
+knitr::opts_chunk$set(collapse = TRUE, comment = "#>", fig.width=6, fig.height=4)
+library(multivarious)
+library(ggplot2)
+
+## ----basic_example_setup------------------------------------------------------
+set.seed(123)
+X <- as.matrix(iris[, 1:4])  # 150 samples x 4 features
+
+# Create 5-fold cross-validation splits
+K <- 5
+fold_ids <- sample(rep(1:K, length.out = nrow(X)))
+folds <- lapply(1:K, function(k) list(
+  train = which(fold_ids != k),
+  test  = which(fold_ids == k)
+))
+
+## ----basic_example_functions--------------------------------------------------
+fit_pca <- function(train_data, ncomp) {
+  pca(train_data, ncomp = ncomp, preproc = center())
+}
+
+measure_reconstruction <- function(model, test_data) {
+  # Project test data to score space
+ scores <- project(model, test_data)
+
+  # Reconstruct: scores %*% t(loadings), then reverse centering
+ recon <- scores %*% t(model$v)
+  recon <- inverse_transform(model$preproc, recon)
+
+  # Compute RMSE
+  rmse <- sqrt(mean((test_data - recon)^2))
+  tibble::tibble(rmse = rmse)
+}
+
+## ----basic_example_cv---------------------------------------------------------
+results_list <- lapply(1:4, function(nc) {
+  cv_res <- cv_generic(
+    data = X,
+    folds = folds,
+    .fit_fun = fit_pca,
+    .measure_fun = measure_reconstruction,
+    fit_args = list(ncomp = nc),
+    backend = "serial"
+  )
+  # Extract RMSE from each fold and average
+  fold_rmse <- sapply(cv_res$metrics, function(m) m$rmse)
+  data.frame(ncomp = nc, rmse = mean(fold_rmse))
+})
+
+cv_results <- do.call(rbind, results_list)
+print(cv_results)
+
+## ----understanding_output-----------------------------------------------------
+# Run CV once to inspect the structure
+cv_example <- cv_generic(
+  X, folds,
+  .fit_fun = fit_pca,
+  .measure_fun = measure_reconstruction,
+  fit_args = list(ncomp = 2)
+)
+
+# Structure overview
+str(cv_example, max.level = 1)
+
+# Extract metrics from all folds
+all_metrics <- dplyr::bind_rows(cv_example$metrics)
+print(all_metrics)
+
+## ----preprocessing_comparison-------------------------------------------------
+prep_center <- center()
+prep_zscore <- colscale(center(), type = "z")
+
+fit_with_prep <- function(train_data, ncomp, preproc) {
+  pca(train_data, ncomp = ncomp, preproc = preproc)
+}
+
+# Compare both strategies with 3 components
+cv_center <- cv_generic(
+  X, folds,
+  .fit_fun = fit_with_prep,
+  .measure_fun = measure_reconstruction,
+  fit_args = list(ncomp = 3, preproc = prep_center)
+)
+
+cv_zscore <- cv_generic(
+  X, folds,
+  .fit_fun = fit_with_prep,
+  .measure_fun = measure_reconstruction,
+  fit_args = list(ncomp = 3, preproc = prep_zscore)
+)
+
+rmse_center <- mean(sapply(cv_center$metrics, `[[`, "rmse"))
+rmse_zscore <- mean(sapply(cv_zscore$metrics, `[[`, "rmse"))
+
+cat("Center only - RMSE:", round(rmse_center, 4), "\n")
+cat("Z-score     - RMSE:", round(rmse_zscore, 4), "\n")
+
+## ----parallel_cv, eval=FALSE--------------------------------------------------
+# # Setup parallel backend
+# library(future)
+# plan(multisession, workers = 4)
+# 
+# # Run CV in parallel
+# cv_parallel <- cv_generic(
+#   X,
+#   folds = folds,
+#   .fit_fun = fit_pca,
+#   .measure_fun = measure_pca,
+#   fit_args = list(ncomp = 4),
+#   backend = "future"  # Use parallel backend
+# )
+# 
+# # Don't forget to reset
+# plan(sequential)
+
+## ----multiple_metrics---------------------------------------------------------
+measure_multi <- function(model, test_data) {
+  scores <- project(model, test_data)
+  recon <- scores %*% t(model$v)
+  recon <- inverse_transform(model$preproc, recon)
+
+  residuals <- test_data - recon
+  ss_res <- sum(residuals^2)
+  ss_tot <- sum((test_data - mean(test_data))^2)
+
+  tibble::tibble(
+    rmse = sqrt(mean(residuals^2)),
+    mae  = mean(abs(residuals)),
+    r2   = 1 - ss_res / ss_tot
+  )
+}
+
+cv_multi <- cv_generic(
+  X, folds,
+  .fit_fun = fit_pca,
+  .measure_fun = measure_multi,
+  fit_args = list(ncomp = 3)
+)
+
+all_metrics <- dplyr::bind_rows(cv_multi$metrics)
+print(all_metrics)
+
+cat("\nMean across folds:\n")
+cat("RMSE:", round(mean(all_metrics$rmse), 4), "\n")
+cat("MAE: ", round(mean(all_metrics$mae), 4), "\n")
+cat("R2:  ", round(mean(all_metrics$r2), 4), "\n")
+
+## ----preprocessing_tip, eval=FALSE--------------------------------------------
+# # WRONG: Preprocessing outside CV leaks information
+# X_scaled <- scale(X)  # Uses mean/sd from ALL samples including test!
+# cv_wrong <- cv_generic(X_scaled, folds, ...)
+# 
+# # RIGHT: Let the model handle preprocessing internally
+# # Each fold fits centering/scaling on training data only
+# fit_pca <- function(train_data, ncomp) {
+#   pca(train_data, ncomp = ncomp, preproc = center())
+# }
+
+## ----other_projectors, eval=FALSE---------------------------------------------
+# # Nyström approximation for kernel PCA
+# fit_nystrom <- function(train_data, ncomp) {
+#   nystrom_approx(train_data, ncomp = ncomp, nlandmarks = 50, preproc = center())
+# }
+# 
+# # Kernel-space reconstruction error
+# measure_kernel <- function(model, test_data) {
+#   S <- project(model, test_data)
+#   K_hat <- S %*% t(S)
+#   Xc <- reprocess(model, test_data)
+#   K_true <- Xc %*% t(Xc)
+#   tibble::tibble(kernel_rmse = sqrt(mean((K_hat - K_true)^2)))
+# }
+# 
+# cv_nystrom <- cv_generic(
+#   X, folds,
+#   .fit_fun = fit_nystrom,
+#   .measure_fun = measure_kernel,
+#   fit_args = list(ncomp = 10)
+# )
+
+## ----nystrom_demo-------------------------------------------------------------
+set.seed(123)
+X <- matrix(rnorm(80 * 10), 80, 10)
+ncomp <- 5
+
+# Exact setting: linear kernel + centering + m = N
+fit_std <- nystrom_approx(
+  X, ncomp = ncomp, landmarks = 1:nrow(X), preproc = center(), method = "standard"
+)
+
+# Compare kernel eigenvalues: eig(K) vs fit_std$sdev^2
+Xc <- transform(fit_std$preproc, X)
+K  <- Xc %*% t(Xc)
+lam_K <- eigen(K, symmetric = TRUE)$values[1:ncomp]
+
+data.frame(
+  component = 1:ncomp,
+  nystrom = sort(fit_std$sdev^2, decreasing = TRUE),
+  exact_K  = sort(lam_K,          decreasing = TRUE)
+)
+
+# Relationship with PCA: prcomp() returns singular values / sqrt(n - 1)
+p <- prcomp(Xc, center = FALSE, scale. = FALSE)
+lam_from_pca <- p$sdev[1:ncomp]^2 * (nrow(X) - 1) # equals eig(K)
+
+data.frame(
+  component = 1:ncomp,
+  from_pca  = sort(lam_from_pca,  decreasing = TRUE),
+  exact_K   = sort(lam_K,         decreasing = TRUE)
+)
+
+# Out-of-sample projection for new rows
+new_rows <- 1:5
+scores_new <- project(fit_std, X[new_rows, , drop = FALSE])
+head(scores_new)
+
+# Double Nyström collapses to standard when l = m = N
+fit_dbl <- nystrom_approx(
+  X, ncomp = ncomp, landmarks = 1:nrow(X), preproc = center(), method = "double", l = nrow(X)
+)
+all.equal(sort(fit_std$sdev^2, decreasing = TRUE), sort(fit_dbl$sdev^2, decreasing = TRUE))
+
+## ----nystrom_rbf, eval=FALSE--------------------------------------------------
+# # Example RBF kernel
+# gaussian_kernel <- function(A, B, sigma = 1) {
+#   # ||a-b||^2 = ||a||^2 + ||b||^2 - 2 a·b
+#   G  <- A %*% t(B)
+#   a2 <- rowSums(A * A)
+#   b2 <- rowSums(B * B)
+#   D2 <- outer(a2, b2, "+") - 2 * G
+#   exp(-D2 / (2 * sigma^2))
+# }
+# 
+# fit_rbf <- nystrom_approx(
+#   X, ncomp = 8, nlandmarks = 40, preproc = center(), method = "double", l = 20,
+#   kernel_func = gaussian_kernel
+# )
+# scores_rbf <- project(fit_rbf, X[1:10, ])
+
+## ----nystrom_cv_compare-------------------------------------------------------
+set.seed(202)
+
+# PCA fit function (reuses earlier fit_pca)
+fit_pca <- function(train_data, ncomp) {
+  pca(train_data, ncomp = ncomp, preproc = center())
+}
+
+# Nyström fit function (standard variant, linear kernel, no RSpectra needed for small data)
+fit_nystrom <- function(train_data, ncomp, nlandmarks = 50) {
+  nystrom_approx(train_data, ncomp = ncomp, nlandmarks = nlandmarks,
+                 preproc = center(), method = "standard", use_RSpectra = FALSE)
+}
+
+# Kernel-space RMSE metric for a test fold
+measure_kernel_rmse <- function(model, test_data) {
+  S <- project(model, test_data)
+  K_hat <- S %*% t(S)
+  Xc <- reprocess(model, test_data)
+  K_true <- Xc %*% t(Xc)
+  tibble::tibble(kernel_rmse = sqrt(mean((K_hat - K_true)^2)))
+}
+
+# Use a local copy of iris data and local folds for this comparison
+X_cv <- as.matrix(scale(iris[, 1:4]))
+K <- 5
+fold_ids <- sample(rep(1:K, length.out = nrow(X_cv)))
+folds_cv <- lapply(1:K, function(k) list(
+  train = which(fold_ids != k),
+  test  = which(fold_ids == k)
+))
+
+# Compare for k = 3 components
+k_sel <- 3
+cv_pca_kernel <- cv_generic(
+  X_cv, folds_cv,
+  .fit_fun = fit_pca,
+  .measure_fun = measure_kernel_rmse,
+  fit_args = list(ncomp = k_sel)
+)
+
+cv_nys_kernel <- cv_generic(
+  X_cv, folds_cv,
+  .fit_fun = fit_nystrom,
+  .measure_fun = measure_kernel_rmse,
+  fit_args = list(ncomp = k_sel, nlandmarks = 50)
+)
+
+metrics_pca <- dplyr::bind_rows(cv_pca_kernel$metrics)
+metrics_nys <- dplyr::bind_rows(cv_nys_kernel$metrics)
+rmse_pca <- mean(metrics_pca$kernel_rmse, na.rm = TRUE)
+rmse_nys <- mean(metrics_nys$kernel_rmse, na.rm = TRUE)
+
+cv_summary <- data.frame(
+  method = c("PCA", "Nyström (linear)"),
+  kernel_rmse = c(rmse_pca, rmse_nys)
+)
+print(cv_summary)
+
+# Simple bar plot
+ggplot(cv_summary, aes(x = method, y = kernel_rmse, fill = method)) +
+  geom_col(width = 0.6) +
+  guides(fill = "none") +
+  labs(title = "Cross‑validated kernel RMSE (k = 3)", y = "Kernel RMSE", x = NULL)
+

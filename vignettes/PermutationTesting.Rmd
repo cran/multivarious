@@ -1,0 +1,229 @@
+---
+title: Permutation Testing in multivarious
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Permutation Testing in multivarious}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+params:
+  family: red
+css: albers.css
+resource_files:
+- albers.css
+- albers.js
+includes:
+  in_header: |-
+    <script src="albers.js"></script>
+    <script>document.addEventListener('DOMContentLoaded',()=>document.body.classList.add('palette-red'));</script>
+
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(collapse = TRUE, comment = "#>")
+library(multivarious)
+# library(future) # Load if using parallel = TRUE
+# library(MASS) # Load if using default fit_fun for discriminant_projector
+```
+
+# 1. Why Permutation Tests?
+
+Dimensionality reduction raises a fundamental question: **how many components are real?**
+
+A scree plot might show a clear "elbow" at 3 components, but is that structure genuine or could it arise from noise? Classical heuristics provide guidance but not formal inference. Permutation testing fills this gap by answering: *"What would this statistic look like if there were no true structure?"*
+
+## The permutation logic
+
+The procedure is straightforward:
+1.  Compute the statistic of interest on the original data (e.g., variance explained by PC1).
+2.  Shuffle the data to destroy the structure being tested.
+3.  Recompute the statistic on the shuffled data.
+4.  Repeat steps 2--3 many times to build a **null distribution**.
+5.  Compare the original statistic to this distribution.
+
+If the observed value is more extreme than (say) 95% of the permuted values, we reject the null hypothesis at $\alpha = 0.05$.
+
+The critical design choice is *how* to shuffle. Different analyses require different permutation schemes---shuffling columns for PCA, shuffling labels for classification, shuffling one block for cross-block methods. The `perm_test()` function handles these details automatically based on the model type.
+
+---
+
+# 2. Basic Usage
+
+The interface is consistent across model types: fit your model, then call `perm_test()`.
+
+```{r basic_workflow, message=FALSE, warning=FALSE}
+data(iris)
+X_iris <- as.matrix(iris[, 1:4])
+
+mod_pca <- pca(X_iris, ncomp = 4, preproc = center())
+```
+
+Now test whether each principal component captures more variance than expected by chance:
+
+```{r perm_test_call}
+set.seed(1)
+pt_pca <- perm_test(mod_pca,
+                    X = X_iris,
+                    nperm = 199,
+                    comps = 3,
+                    parallel = FALSE)
+```
+
+The key arguments:
+
+- `X` --- the original data (required for re-shuffling)
+- `nperm` --- number of permutations (199 here for speed; use 999+ in practice)
+- `comps` --- how many components to test sequentially
+- `parallel` --- enable parallel execution via the `future` package
+
+## Interpreting results
+
+The result object contains a `component_results` table with p-values and confidence intervals:
+
+```{r inspect_results}
+print(pt_pca$component_results)
+```
+
+Components are tested sequentially. By default, testing stops when a component is non-significant ($p > 0.05$), since later components are unlikely to be meaningful if an earlier one fails. Set `alpha = 1` to force testing all components.
+
+---
+
+# 3. Method-Specific Behavior
+
+The `perm_test()` function dispatches to specialized methods based on the model class. Each method uses an appropriate test statistic and shuffle scheme.
+
+## PCA
+
+For PCA, the null hypothesis is that the variables are independent (no correlation structure). The shuffle scheme permutes each column independently, destroying any covariance while preserving marginal distributions.
+
+**Statistic:** Fraction of remaining variance explained by component $a$:
+$$F_a = \frac{\lambda_a}{\sum_{j \ge a}\lambda_j}$$
+
+This tests whether component $a$ explains more variance than expected given the remaining variance pool. See Vitale et al. (2017) for theoretical background.
+
+## Discriminant projector
+
+For discriminant analysis, the null hypothesis is that class labels are unrelated to the features. The shuffle scheme permutes the class labels.
+
+**Statistic:** Classification accuracy (using LDA or nearest-centroid).
+
+## Cross-projector (CCA, PLS)
+
+For two-block methods, the null hypothesis is that blocks X and Y are unrelated. The shuffle scheme permutes rows of one block only, breaking the correspondence while preserving within-block structure.
+
+**Statistic:** Mean squared error of cross-block prediction (X → Y).
+
+## Multiblock projector
+
+For multi-block analyses, the null hypothesis is that blocks share no common structure. Each block is shuffled independently.
+
+**Statistic:** Consensus measures (leading eigenvalue or mean absolute correlation between block scores).
+
+---
+
+# 4. Custom Statistics and Shuffle Schemes
+
+The defaults work well for standard analyses, but you can override any component of the permutation machinery.
+
+## Available hooks
+
+- **`measure_fun(model_perm, comp_idx, ...)`** --- Computes the test statistic from a model fitted on permuted data. Called once per component.
+
+- **`shuffle_fun(data, ...)`** --- Permutes the data. Must return data in the same structure as the input.
+
+- **`fit_fun(Xtrain, ...)`** --- Re-fits the model on permuted data. Used by `cross_projector` and `discriminant_projector` when the default fitter (e.g., `MASS::lda`) is not appropriate.
+
+## Example: custom statistic
+
+Suppose you want to test whether the *first two* PCs jointly explain more variance than chance. You can supply a custom `measure_fun`:
+
+```{r custom_measure}
+my_pca_stat <- function(model_perm, comp_idx, ...) {
+  # Only compute the joint statistic when testing component 2
+
+  if (comp_idx == 2 && length(model_perm$sdev) >= 2) {
+    sum(model_perm$sdev[1:2]^2) / sum(model_perm$sdev^2)
+  } else if (comp_idx == 1) {
+    model_perm$sdev[1]^2 / sum(model_perm$sdev^2)
+  } else {
+    NA_real_
+  }
+}
+
+# Illustrative call (using default measure here for simplicity)
+pt_pca_custom <- perm_test(mod_pca, X = X_iris, nperm = 50, comps = 2,
+                           parallel = FALSE)
+print(pt_pca_custom$component_results)
+```
+
+For testing a single combined statistic rather than sequential components, set `comps = 1` and have your `measure_fun` compute the combined value directly.
+
+---
+
+# 5. Parallel Execution
+
+Permutation tests are embarrassingly parallel---each permutation is independent. The `perm_test()` methods use the `future` framework, so you control parallelism through your plan:
+
+```{r parallel_example, eval=FALSE}
+library(future)
+plan(multisession, workers = 4)
+
+pt_pca_parallel <- perm_test(mod_pca, X = X_iris,
+                             nperm = 999,
+                             comps = 3,
+                             parallel = TRUE)
+
+plan(sequential)
+```
+
+With 4 workers and 999 permutations, each worker handles ~250 permutations concurrently.
+
+---
+
+# 6. Practical Considerations
+
+## High-dimensional data
+
+When $p \gg n$, computing full eigendecompositions repeatedly can be slow. Keep `comps` small (you rarely need to test more than 10--20 components), and consider faster SVD backends if available.
+
+## Non-exchangeable observations
+
+The default shuffles assume observations are exchangeable under the null. This breaks down for time-series, spatial data, or blocked designs. In these cases, provide a custom `shuffle_fun` that respects the dependence structure (e.g., block permutation, circular shifts).
+
+## Confidence intervals
+
+The `component_results` table includes empirical 95% CIs derived from the permutation distribution. These quantify uncertainty in the test statistic under the null.
+
+## The original data is required
+
+Most methods need the original data (`X`, `Y`, or `Xlist`) to perform shuffling. Always pass it explicitly.
+
+## Deprecated function
+
+The older `perm_ci.pca()` is deprecated. Use `perm_test()` instead---confidence intervals are included in the results table.
+
+---
+
+```{r internal_checks, eval=nzchar(Sys.getenv("_MULTIVARIOUS_DEV_COVERAGE")), include=FALSE}
+# CI sanity check: verify perm_test returns expected structure
+set.seed(42)
+mtcars_mat <- as.matrix(scale(mtcars))
+pca_test_mod <- pca(mtcars_mat, ncomp = 3)
+pt_check <- perm_test(pca_test_mod, mtcars_mat, nperm = 19, comps = 2, parallel = FALSE)
+stopifnot(
+
+  nrow(pt_check$component_results) == 2,
+ !is.na(pt_check$component_results$pval[1])
+)
+```
+
+---
+
+# 7. References
+
+*   Vitale, R., Westerhuis, J. A., Næs, T., Smilde, A. K., de Noord, O. E., & Ferrer, A. (2017). Selecting the number of factors in principal component analysis by permutation testing— Numerical and practical aspects. *Journal of Chemometrics*, 31(10), e2937. \doi{10.1002/cem.2937}
+*   Good, P. I. (2005). *Permutation, Parametric, and Bootstrap Tests of Hypotheses*. Springer Series in Statistics. Springer.
+*   Bengtsson, H. (2021). future: Unified Parallel and Distributed Processing in R for Everyone. *R package version 1.21.0*. https://future.futureverse.org/
+
+---
+
+By providing a unified `perm_test` interface, `multivarious` allows researchers to apply robust, data-driven significance testing across a range of multivariate modeling techniques. 
