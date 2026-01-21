@@ -63,90 +63,49 @@ print(cp_cca)
 attr(cp_cca, "can_cor") # Show canonical correlations
 
 ## ----transfer_cca-------------------------------------------------------------
-# Predict Y from X
 Y_hat <- transfer(cp_cca, X, from = "X", to = "Y")
 head(round(Y_hat, 2))
 
-# Evaluate reconstruction quality (comparing original Y to predicted Y)
-# Note: CCA maximizes correlation in the latent space, not prediction accuracy.
-# With only 2 components and weak relationships between sepal and petal features,
-# the R² may be modest. For prediction tasks, consider PLS instead of CCA.
 measure_reconstruction_error(Y, Y_hat, metrics = c("rmse", "r2"))
 
 ## ----partial_project_cca------------------------------------------------------
-new_x_partial   <- X[, 1, drop = FALSE] # One column matrix
-col_index       <- 1                     # Its index in the original X block
+new_x_partial <- X[, 1, drop = FALSE]
 
-# Project this partial data into the latent space
-# Note: partial_project needs 'source' for cross_projector
-scores_partial  <- partial_project(cp_cca, new_x_partial,
-                                   colind = col_index,
-                                   source = "X") # Specify source block
+scores_partial <- partial_project(cp_cca, new_x_partial,
+                                  colind = 1,
+                                  source = "X")
 head(round(scores_partial, 3))
 
-# We could then map these scores back to the Y-block space if needed,
-# though interpretation might require care. Example using inverse_projection:
-# Assuming inverse_projection method exists for cross_projector
-# y_from_partial  <- scores_partial %*% inverse_projection(cp_cca, domain = "Y")
-# head(round(y_from_partial, 2))
-
-## ----cv_cca-------------------------------------------------------------------
-set.seed(1)
-folds <- kfold_split(nrow(X), k = 5) # Create 5 folds
-
-# Note: Using cv_generic requires careful handling of two-block data.
-# The following demonstrates the concept, assuming a cv method exists
-# that can handle X, Y inputs directly or that cv_generic is adapted.
-# For a real application, one might need helper functions within .fit_fun
-# and .measure_fun to split/combine the data blocks within each fold.
-
-# Placeholder call assuming an appropriate `cv` method or adapted `cv_generic`:
-# cv_res <- cv( # Or cv_generic(...)
-#   X, Y, # Hypothetical interface accepting two blocks
-#   folds          = folds,
-#   max_comp       = 2,
-#   fit_fun        = fit_cca,
-#   measure_fun    = measure_interblock_transfer_error,
-#   measure_args   = list(metrics = c("x2y.rmse", "y2x.rmse"))
-# )
-# print(summary(cv_res)) # Would show average RMSE per component
-
-# Example using cv_generic with wrappers (conceptual)
-# Define wrappers carefully based on how data/folds are structured
-# .fit_wrapper <- function(train_data_list, ncomp, ...) {
-#    fit_cca(train_data_list$X, train_data_list$Y, ncomp=ncomp, ...)
+## ----cv_cca, eval=FALSE-------------------------------------------------------
+# set.seed(1)
+# folds <- kfold_split(nrow(X), k = 5)
+# 
+# cv_fit <- function(train_data, ncomp) {
+#   fit_cca(train_data$X, train_data$Y, ncomp = ncomp)
 # }
-# .measure_wrapper <- function(model, test_data_list, metrics) {
-#    measure_interblock_transfer_error(test_data_list$X, test_data_list$Y, model, metrics=metrics)
+# 
+# cv_measure <- function(model, test_data) {
+#   measure_interblock_transfer_error(
+#     test_data$X, test_data$Y, model,
+#     metrics = c("x2y.rmse", "y2x.rmse")
+#   )
 # }
-# cv_generic_res <- cv_generic(
-#    data = list(X=X, Y=Y), # Requires folds based on row indices of X & Y
-#    folds = folds,
-#    .fit_fun = .fit_wrapper,
-#    fit_args = list(ncomp=2), # Pass ncomp here if fit_cca needs it
-#    .measure_fun = .measure_wrapper,
-#    measure_args = list(metrics=c("x2y.rmse", "y2x.rmse"))
+# 
+# cv_res <- cv_generic(
+#   data = list(X = X, Y = Y),
+#   folds = folds,
+#   .fit_fun = cv_fit,
+#   .measure_fun = cv_measure,
+#   fit_args = list(ncomp = 2)
 # )
-# print(summary(cv_generic_res)) # This would work if wrappers are correct
 
-cat("Skipping CV execution in vignette for brevity/simplicity.\n")
-cat("Users should adapt cv/cv_generic call based on package structure.\n")
-
-## ----perm_test_cca------------------------------------------------------------
-# Assuming perm_test.cross_projector method exists
+## ----perm_test_cca, eval=FALSE------------------------------------------------
 # perm_res <- perm_test(
-#   cp_cca, X, Y = Y, # Pass the cross_projector and original data blocks
-#   nperm = 100, # Use more perms (e.g., 1000) in practice
-#   alternative = "less", # Test if observed error is less than permuted error
-#   # Need to specify the statistic measured by perm_test for cross_projector
-#   # e.g., measure_fun = function(model, X, Y) {
-#   #    Yh <- transfer(model, X, from="X", to="Y"); measure_reconstruction_error(Y, Yh, "rmse")$rmse
-#   # }
+#   cp_cca, X, Y = Y,
+#   nperm = 199,
+#   alternative = "less"
 # )
 # print(perm_res)
-
-cat("Skipping permutation test execution in vignette.\n")
-cat("Requires perm_test method for cross_projector, specifying the test statistic.\n")
 
 ## ----setup_glmnet-------------------------------------------------------------
 # Generate sample data

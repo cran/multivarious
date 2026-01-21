@@ -1,6 +1,6 @@
 Package: multivarious
 Title: Extensible Data Structures for Multivariate Analysis
-Version: 0.3.0
+Version: 0.3.1
 Authors@R: 
     person(given = "Bradley",
            family = "Buchsbaum",
@@ -20,10 +20,10 @@ URL: https://bbuchsbaum.github.io/multivarious/
 VignetteBuilder: knitr
 Config/Needs/website: albersdown
 NeedsCompilation: no
-Packaged: 2026-01-21 13:10:00 UTC; bbuchsbaum
+Packaged: 2026-01-21 14:59:29 UTC; bbuchsbaum
 Author: Bradley Buchsbaum [aut, cre] (ORCID:
     <https://orcid.org/0000-0002-1108-4866>)
 Maintainer: Bradley Buchsbaum <brad.buchsbaum@gmail.com>
 Depends: R (>= 4.2.0)
 Repository: CRAN
-Date/Publication: 2026-01-21 14:30:02 UTC
+Date/Publication: 2026-01-21 23:00:03 UTC

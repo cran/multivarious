@@ -458,14 +458,14 @@ approximation twice, reducing complexity further:</p>
 <span id="cb4-4"><a href="#cb4-4" tabindex="-1"></a>  ny_standard <span class="ot">&lt;-</span> <span class="fu">nystrom_approx</span>(X, <span class="at">ncomp =</span> <span class="dv">5</span>, <span class="at">nlandmarks =</span> <span class="dv">200</span>, <span class="at">method =</span> <span class="st">&quot;standard&quot;</span>)</span>
 <span id="cb4-5"><a href="#cb4-5" tabindex="-1"></a>)</span>
 <span id="cb4-6"><a href="#cb4-6" tabindex="-1"></a><span class="co">#&gt;    user  system elapsed </span></span>
-<span id="cb4-7"><a href="#cb4-7" tabindex="-1"></a><span class="co">#&gt;   0.010   0.001   0.011</span></span>
+<span id="cb4-7"><a href="#cb4-7" tabindex="-1"></a><span class="co">#&gt;   0.010   0.000   0.011</span></span>
 <span id="cb4-8"><a href="#cb4-8" tabindex="-1"></a></span>
 <span id="cb4-9"><a href="#cb4-9" tabindex="-1"></a><span class="co"># Double Nyström (faster with intermediate rank l)</span></span>
 <span id="cb4-10"><a href="#cb4-10" tabindex="-1"></a><span class="fu">system.time</span>(</span>
 <span id="cb4-11"><a href="#cb4-11" tabindex="-1"></a>  ny_double <span class="ot">&lt;-</span> <span class="fu">nystrom_approx</span>(X, <span class="at">ncomp =</span> <span class="dv">5</span>, <span class="at">nlandmarks =</span> <span class="dv">200</span>, <span class="at">method =</span> <span class="st">&quot;double&quot;</span>, <span class="at">l =</span> <span class="dv">50</span>)</span>
 <span id="cb4-12"><a href="#cb4-12" tabindex="-1"></a>)</span>
 <span id="cb4-13"><a href="#cb4-13" tabindex="-1"></a><span class="co">#&gt;    user  system elapsed </span></span>
-<span id="cb4-14"><a href="#cb4-14" tabindex="-1"></a><span class="co">#&gt;   0.014   0.000   0.014</span></span></code></pre></div>
+<span id="cb4-14"><a href="#cb4-14" tabindex="-1"></a><span class="co">#&gt;   0.014   0.001   0.015</span></span></code></pre></div>
 </div>
 <div id="choosing-parameters" class="section level2">
 <h2>Choosing Parameters</h2>
