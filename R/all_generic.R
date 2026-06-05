@@ -34,7 +34,7 @@ project <- function(x, new_data, ...) UseMethod("project")
 #'   the observations to be projected.
 #' @param colind A numeric vector of column indices in the original data space
 #'   that correspond to \code{new_data}'s columns.
-#' @param least_squares Logical; if TRUE (default), do a ridge-regularized solve.
+#' @param least_squares Logical; if TRUE, do a ridge-regularized solve (default FALSE).
 #' @param lambda Numeric; ridge penalty (default 1e-6). Ignored if `least_squares=FALSE`.
 #' @param ... Additional arguments passed to class-specific partial_project methods.
 #'
@@ -42,7 +42,7 @@ project <- function(x, new_data, ...) UseMethod("project")
 #'   those columns only.
 #' @export
 partial_project <- function(x, new_data, colind,
-                            least_squares = TRUE,
+                            least_squares = FALSE,
                             lambda = 1e-6,
                             ...) {
   UseMethod("partial_project")
@@ -573,7 +573,7 @@ rotate <- function(x, ncomp, type, ...) UseMethod("rotate")
 #' Apply a specified rotation to the fitted model
 #' 
 #' @param x A model object, possibly created using the `pca()` function.
-#' @param rotation_matrix \code{matrix} reprsenting the rotation.
+#' @param rotation_matrix \code{matrix} representing the rotation.
 #' @param ... extra args
 #' @return A modified object with updated components and scores after applying the specified rotation.
 #' @export
@@ -589,6 +589,16 @@ apply_rotation <- function(x, rotation_matrix, ...) { UseMethod("apply_rotation"
 #' @return the feature importance scores
 #' @export
 feature_importance <- function(x, ...) UseMethod("feature_importance")
+
+
+#' Extract a named effect from a fitted model
+#'
+#' @param x A fitted model object.
+#' @param term A term label or one-sided formula identifying the effect of interest.
+#' @param ... Additional arguments passed to methods.
+#' @return An effect object, typically an `effect_operator`.
+#' @export
+effect <- function(x, term, ...) UseMethod("effect")
 
 
 
@@ -794,5 +804,3 @@ variables_used <- function(x, ...) {
 vars_for_component <- function(x, k, ...) {
     UseMethod("vars_for_component")
 }
-
-

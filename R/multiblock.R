@@ -86,11 +86,11 @@ nblocks.multiblock_projector <- function(x) {
 #' @param x A `multiblock_projector` object.
 #' @param new_data The new data to be projected.
 #' @param block The block index (1-based) to project onto.
-#' @param least_squares Logical. If `TRUE` (default), use least squares projection.
+#' @param least_squares Logical. If `TRUE`, use least squares projection (default FALSE).
 #' @param ... Additional arguments passed to `partial_project`.
 #' @return The projected scores for the specified block.
 #' @export
-project_block.multiblock_projector <- function(x, new_data, block,least_squares=TRUE, ...) {
+project_block.multiblock_projector <- function(x, new_data, block,least_squares=FALSE, ...) {
   # Check block validity
   nb <- nblocks(x)
   if (block < 1 || block > nb) {
@@ -98,7 +98,7 @@ project_block.multiblock_projector <- function(x, new_data, block,least_squares=
   }
   
   ind <- block_indices(x)[[block]]
-  partial_project(x, new_data, colind=ind, least_squares,...)
+  partial_project(x, new_data, colind=ind, least_squares = least_squares, ...)
 }
 
 #' Coefficients for a Multiblock Projector
@@ -173,8 +173,6 @@ print.multiblock_biprojector <- function(x, ...) {
 
 #' @importFrom stats var
 #' @importFrom utils combn
-#' @importFrom RSpectra svds
-#' @importFrom future.apply future_lapply
 #' @export
 perm_test.multiblock_biprojector <- function(
     x,
@@ -214,13 +212,14 @@ perm_test.multiblock_biprojector <- function(
           do.call(cbind, replicate(B, sc, simplify = FALSE))
       } else {                          # re-project if user gave data
           # Project each block in data_list onto component k using original model x
-          lapply(seq_len(B), function(b){
+          block_scores <- lapply(seq_len(B), function(b){
               xb <- data_list[[b]]
               # project block b onto *single* component k
               nd_proc <- transform(x$preproc, xb, blk_ind[[b]])
               v_sub   <- x$v[ blk_ind[[b]] , comp_k , drop = FALSE]
               as.vector(nd_proc %*% v_sub)
-          }) |> do.call(cbind, args = _) # Result is n x B matrix
+          })
+          do.call(cbind, block_scores) # Result is n x B matrix
       }
   }
 
@@ -384,24 +383,11 @@ perm_test.multiblock_projector <- function(x,
   ## ---------- helpers ----------
   # block-specific preprocessing (reuse x$preproc) ----
   prep_all <- function(Xl) {
-    # Concatenate, apply transform to full matrix, then split back
-    p_all <- sum(p_each)
-    Xall <- matrix(0.0, nrow=N, ncol=p_all) # Pre-allocate
-    cidx <- 1
-    for(b in 1:B) {
-      Xall[, cidx:(cidx+p_each[b]-1)] <- Xl[[b]]
-      cidx <- cidx + p_each[b]
-    }
-  Xproc_all <- transform(x$preproc, Xall)
-    
-    # Split back into list
-    Xp_list <- vector("list", B)
-    cidx <- 1
-    for(b in 1:B) {
-      Xp_list[[b]] <- Xproc_all[, cidx:(cidx+p_each[b]-1), drop=FALSE]
-      cidx <- cidx + p_each[b]
-    }
-    Xp_list
+    # Apply preprocessing blockwise with global column ids. This avoids
+    # materializing a wide temporary matrix for large multiblock data.
+    lapply(seq_len(B), function(b) {
+      transform(x$preproc, Xl[[b]], colind = blk_idx[[b]])
+    })
   }
 
   # compute block scores for first K comps using original model 'x' ----

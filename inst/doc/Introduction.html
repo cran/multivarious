@@ -360,6 +360,8 @@ space.</li>
 <li>Integrating these steps with pre-processing (like centering or
 scaling).</li>
 <li>Comparing or tuning models using cross-validation.</li>
+<li>Extracting named multivariate effects from repeated-measures or
+mixed designs.</li>
 </ul>
 <p>Handling these tasks consistently across different algorithms can
 lead to repetitive code and complex workflows. The
@@ -389,6 +391,18 @@ information.</p>
 <code>pca()</code>, <code>pls()</code>, <code>cPCAplus()</code>,
 <code>nystrom_approx()</code>, <code>regress()</code>) return objects
 that inherit from <code>bi_projector</code>.</p>
+<p>The same grammar now extends to mixed-effect operator analysis:</p>
+<ul>
+<li><code>mixed_regress()</code> fits the row-side geometry of a
+repeated-measures or mixed design.</li>
+<li><code>effect()</code> extracts a named fixed-effect term as an
+<code>effect_operator</code>.</li>
+<li><code>effect_operator</code> inherits from
+<code>bi_projector</code>, so <code>components()</code>,
+<code>scores()</code>, <code>reconstruct()</code>,
+<code>truncate()</code>, <code>perm_test()</code>, and
+<code>bootstrap()</code> all work in the same style.</li>
+</ul>
 </div>
 <div id="key-actions-with-a-bi_projector" class="section level2">
 <h2>Key Actions with a <code>bi_projector</code></h2>
@@ -497,6 +511,65 @@ new data (<code>project</code>) follow a consistent pattern, regardless
 of whether the underlying method was PCA, PLS, or another technique
 returning a <code>bi_projector</code>.</p>
 </div>
+<div id="example-mixed-effect-operators" class="section level2">
+<h2>Example: Mixed effect operators</h2>
+<p>The same package grammar applies to repeated-measures multivariate
+effects.</p>
+<div class="sourceCode" id="cb2"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb2-1"><a href="#cb2-1" tabindex="-1"></a><span class="fu">set.seed</span>(<span class="dv">99</span>)</span>
+<span id="cb2-2"><a href="#cb2-2" tabindex="-1"></a></span>
+<span id="cb2-3"><a href="#cb2-3" tabindex="-1"></a>design_m <span class="ot">&lt;-</span> <span class="fu">expand.grid</span>(</span>
+<span id="cb2-4"><a href="#cb2-4" tabindex="-1"></a>  <span class="at">subject =</span> <span class="fu">factor</span>(<span class="fu">seq_len</span>(<span class="dv">6</span>)),</span>
+<span id="cb2-5"><a href="#cb2-5" tabindex="-1"></a>  <span class="at">level =</span> <span class="fu">factor</span>(<span class="fu">c</span>(<span class="st">&quot;low&quot;</span>, <span class="st">&quot;mid&quot;</span>, <span class="st">&quot;high&quot;</span>), <span class="at">levels =</span> <span class="fu">c</span>(<span class="st">&quot;low&quot;</span>, <span class="st">&quot;mid&quot;</span>, <span class="st">&quot;high&quot;</span>)),</span>
+<span id="cb2-6"><a href="#cb2-6" tabindex="-1"></a>  <span class="at">KEEP.OUT.ATTRS =</span> <span class="cn">FALSE</span></span>
+<span id="cb2-7"><a href="#cb2-7" tabindex="-1"></a>)</span>
+<span id="cb2-8"><a href="#cb2-8" tabindex="-1"></a>design_m<span class="sc">$</span>group <span class="ot">&lt;-</span> <span class="fu">factor</span>(<span class="fu">rep</span>(<span class="fu">c</span>(<span class="st">&quot;A&quot;</span>, <span class="st">&quot;B&quot;</span>), <span class="at">each =</span> <span class="dv">9</span>))</span>
+<span id="cb2-9"><a href="#cb2-9" tabindex="-1"></a></span>
+<span id="cb2-10"><a href="#cb2-10" tabindex="-1"></a>level_num <span class="ot">&lt;-</span> <span class="fu">c</span>(<span class="at">low =</span> <span class="sc">-</span><span class="dv">1</span>, <span class="at">mid =</span> <span class="dv">0</span>, <span class="at">high =</span> <span class="dv">1</span>)[<span class="fu">as.character</span>(design_m<span class="sc">$</span>level)]</span>
+<span id="cb2-11"><a href="#cb2-11" tabindex="-1"></a>group_num <span class="ot">&lt;-</span> <span class="fu">ifelse</span>(design_m<span class="sc">$</span>group <span class="sc">==</span> <span class="st">&quot;B&quot;</span>, <span class="dv">1</span>, <span class="dv">0</span>)</span>
+<span id="cb2-12"><a href="#cb2-12" tabindex="-1"></a>subj_idx <span class="ot">&lt;-</span> <span class="fu">as.integer</span>(design_m<span class="sc">$</span>subject)</span>
+<span id="cb2-13"><a href="#cb2-13" tabindex="-1"></a>b0 <span class="ot">&lt;-</span> <span class="fu">rnorm</span>(<span class="dv">6</span>, <span class="at">sd =</span> <span class="fl">0.5</span>)</span>
+<span id="cb2-14"><a href="#cb2-14" tabindex="-1"></a></span>
+<span id="cb2-15"><a href="#cb2-15" tabindex="-1"></a>Y_m <span class="ot">&lt;-</span> <span class="fu">cbind</span>(</span>
+<span id="cb2-16"><a href="#cb2-16" tabindex="-1"></a>  b0[subj_idx] <span class="sc">+</span> level_num <span class="sc">+</span> <span class="fu">rnorm</span>(<span class="fu">nrow</span>(design_m), <span class="at">sd =</span> <span class="fl">0.15</span>),</span>
+<span id="cb2-17"><a href="#cb2-17" tabindex="-1"></a>  group_num <span class="sc">+</span> <span class="fu">rnorm</span>(<span class="fu">nrow</span>(design_m), <span class="at">sd =</span> <span class="fl">0.15</span>),</span>
+<span id="cb2-18"><a href="#cb2-18" tabindex="-1"></a>  level_num <span class="sc">*</span> group_num <span class="sc">+</span> <span class="fu">rnorm</span>(<span class="fu">nrow</span>(design_m), <span class="at">sd =</span> <span class="fl">0.15</span>),</span>
+<span id="cb2-19"><a href="#cb2-19" tabindex="-1"></a>  <span class="fu">rnorm</span>(<span class="fu">nrow</span>(design_m), <span class="at">sd =</span> <span class="fl">0.15</span>)</span>
+<span id="cb2-20"><a href="#cb2-20" tabindex="-1"></a>)</span>
+<span id="cb2-21"><a href="#cb2-21" tabindex="-1"></a></span>
+<span id="cb2-22"><a href="#cb2-22" tabindex="-1"></a>fit_m <span class="ot">&lt;-</span> <span class="fu">mixed_regress</span>(</span>
+<span id="cb2-23"><a href="#cb2-23" tabindex="-1"></a>  Y_m,</span>
+<span id="cb2-24"><a href="#cb2-24" tabindex="-1"></a>  <span class="at">design =</span> design_m,</span>
+<span id="cb2-25"><a href="#cb2-25" tabindex="-1"></a>  <span class="at">fixed =</span> <span class="sc">~</span> group <span class="sc">*</span> level,</span>
+<span id="cb2-26"><a href="#cb2-26" tabindex="-1"></a>  <span class="at">random =</span> <span class="sc">~</span> <span class="dv">1</span> <span class="sc">|</span> subject,</span>
+<span id="cb2-27"><a href="#cb2-27" tabindex="-1"></a>  <span class="at">basis =</span> <span class="fu">shared_pca</span>(<span class="dv">3</span>),</span>
+<span id="cb2-28"><a href="#cb2-28" tabindex="-1"></a>  <span class="at">preproc =</span> <span class="fu">pass</span>()</span>
+<span id="cb2-29"><a href="#cb2-29" tabindex="-1"></a>)</span>
+<span id="cb2-30"><a href="#cb2-30" tabindex="-1"></a></span>
+<span id="cb2-31"><a href="#cb2-31" tabindex="-1"></a>E_gl <span class="ot">&lt;-</span> <span class="fu">effect</span>(fit_m, <span class="st">&quot;group:level&quot;</span>)</span>
+<span id="cb2-32"><a href="#cb2-32" tabindex="-1"></a>pt_gl <span class="ot">&lt;-</span> <span class="fu">perm_test</span>(E_gl, <span class="at">nperm =</span> <span class="dv">19</span>, <span class="at">alpha =</span> <span class="fl">0.10</span>)</span>
+<span id="cb2-33"><a href="#cb2-33" tabindex="-1"></a></span>
+<span id="cb2-34"><a href="#cb2-34" tabindex="-1"></a><span class="fu">print</span>(E_gl)</span>
+<span id="cb2-35"><a href="#cb2-35" tabindex="-1"></a><span class="co">#&gt; effect_operator</span></span>
+<span id="cb2-36"><a href="#cb2-36" tabindex="-1"></a><span class="co">#&gt; </span></span>
+<span id="cb2-37"><a href="#cb2-37" tabindex="-1"></a><span class="co">#&gt; Term: group:level</span></span>
+<span id="cb2-38"><a href="#cb2-38" tabindex="-1"></a><span class="co">#&gt; Components: 0</span></span>
+<span id="cb2-39"><a href="#cb2-39" tabindex="-1"></a><span class="co">#&gt; Term df: 0</span></span>
+<span id="cb2-40"><a href="#cb2-40" tabindex="-1"></a><span class="co">#&gt; Scope: within</span></span>
+<span id="cb2-41"><a href="#cb2-41" tabindex="-1"></a><span class="co">#&gt; Exchangeability: within_subject</span></span>
+<span id="cb2-42"><a href="#cb2-42" tabindex="-1"></a><span class="co">#&gt; Basis rank: 3</span></span>
+<span id="cb2-43"><a href="#cb2-43" tabindex="-1"></a>pt_gl<span class="sc">$</span>component_results</span>
+<span id="cb2-44"><a href="#cb2-44" tabindex="-1"></a><span class="co">#&gt; # A tibble: 0 × 7</span></span>
+<span id="cb2-45"><a href="#cb2-45" tabindex="-1"></a><span class="co">#&gt; # ℹ 7 variables: comp &lt;int&gt;, statistic &lt;chr&gt;, effective_rank &lt;int&gt;,</span></span>
+<span id="cb2-46"><a href="#cb2-46" tabindex="-1"></a><span class="co">#&gt; #   lead_sv2 &lt;dbl&gt;, rel &lt;dbl&gt;, observed &lt;dbl&gt;, pval &lt;dbl&gt;</span></span></code></pre></div>
+<p>This is the same projector grammar in a different setting:</p>
+<ul>
+<li>fit once with <code>mixed_regress()</code>,</li>
+<li>extract a named effect,</li>
+<li>decompose it,</li>
+<li>test it,</li>
+<li>reconstruct it.</li>
+</ul>
+</div>
 <div id="beyond-basic-projection-the-multivarious-ecosystem" class="section level2">
 <h2>Beyond Basic Projection: The <code>multivarious</code>
 Ecosystem</h2>
@@ -522,18 +595,18 @@ that understand the <code>bi_projector</code> structure (see
 <em>variables</em> (columns) into the component space defined by the
 model’s scores (U vectors in SVD terms). This is done using
 <code>project_vars()</code>.</p>
-<div class="sourceCode" id="cb2"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb2-1"><a href="#cb2-1" tabindex="-1"></a><span class="co"># Using the &#39;fit&#39; object from the PCA example above</span></span>
-<span id="cb2-2"><a href="#cb2-2" tabindex="-1"></a></span>
-<span id="cb2-3"><a href="#cb2-3" tabindex="-1"></a><span class="co"># Create a new variable (column) with the same number of samples as original data</span></span>
-<span id="cb2-4"><a href="#cb2-4" tabindex="-1"></a><span class="fu">set.seed</span>(<span class="dv">456</span>)</span>
-<span id="cb2-5"><a href="#cb2-5" tabindex="-1"></a>new_variable <span class="ot">&lt;-</span> <span class="fu">rnorm</span>(<span class="fu">nrow</span>(X))</span>
-<span id="cb2-6"><a href="#cb2-6" tabindex="-1"></a></span>
-<span id="cb2-7"><a href="#cb2-7" tabindex="-1"></a><span class="co"># Project this new variable into the component space defined by the PCA scores (fit$s)</span></span>
-<span id="cb2-8"><a href="#cb2-8" tabindex="-1"></a><span class="co"># Result shows how the new variable relates to the principal components.</span></span>
-<span id="cb2-9"><a href="#cb2-9" tabindex="-1"></a>projected_variable_loadings <span class="ot">&lt;-</span> <span class="fu">project_vars</span>(fit, new_variable)</span>
-<span id="cb2-10"><a href="#cb2-10" tabindex="-1"></a><span class="fu">cat</span>(<span class="st">&quot;</span><span class="sc">\n</span><span class="st">Projection of new variable onto components:&quot;</span>, projected_variable_loadings, <span class="st">&quot;</span><span class="sc">\n</span><span class="st">&quot;</span>)</span>
-<span id="cb2-11"><a href="#cb2-11" tabindex="-1"></a><span class="co">#&gt; </span></span>
-<span id="cb2-12"><a href="#cb2-12" tabindex="-1"></a><span class="co">#&gt; Projection of new variable onto components: 0.0003082567 -0.0004245081 -0.0003111904</span></span></code></pre></div>
+<div class="sourceCode" id="cb3"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb3-1"><a href="#cb3-1" tabindex="-1"></a><span class="co"># Using the &#39;fit&#39; object from the PCA example above</span></span>
+<span id="cb3-2"><a href="#cb3-2" tabindex="-1"></a></span>
+<span id="cb3-3"><a href="#cb3-3" tabindex="-1"></a><span class="co"># Create a new variable (column) with the same number of samples as original data</span></span>
+<span id="cb3-4"><a href="#cb3-4" tabindex="-1"></a><span class="fu">set.seed</span>(<span class="dv">456</span>)</span>
+<span id="cb3-5"><a href="#cb3-5" tabindex="-1"></a>new_variable <span class="ot">&lt;-</span> <span class="fu">rnorm</span>(<span class="fu">nrow</span>(X))</span>
+<span id="cb3-6"><a href="#cb3-6" tabindex="-1"></a></span>
+<span id="cb3-7"><a href="#cb3-7" tabindex="-1"></a><span class="co"># Project this new variable into the component space defined by the PCA scores (fit$s)</span></span>
+<span id="cb3-8"><a href="#cb3-8" tabindex="-1"></a><span class="co"># Result shows how the new variable relates to the principal components.</span></span>
+<span id="cb3-9"><a href="#cb3-9" tabindex="-1"></a>projected_variable_loadings <span class="ot">&lt;-</span> <span class="fu">project_vars</span>(fit, new_variable)</span>
+<span id="cb3-10"><a href="#cb3-10" tabindex="-1"></a><span class="fu">cat</span>(<span class="st">&quot;</span><span class="sc">\n</span><span class="st">Projection of new variable onto components:&quot;</span>, projected_variable_loadings, <span class="st">&quot;</span><span class="sc">\n</span><span class="st">&quot;</span>)</span>
+<span id="cb3-11"><a href="#cb3-11" tabindex="-1"></a><span class="co">#&gt; </span></span>
+<span id="cb3-12"><a href="#cb3-12" tabindex="-1"></a><span class="co">#&gt; Projection of new variable onto components: 0.0003082567 -0.0004245081 -0.0003111904</span></span></code></pre></div>
 </div>
 <div id="conclusion" class="section level2">
 <h2>Conclusion</h2>

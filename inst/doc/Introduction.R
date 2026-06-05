@@ -50,6 +50,43 @@ print(head(reconstructed_X_approx))
 print(head(X)) # Original data for comparison
 
 
+## ----mixed_effect_example-----------------------------------------------------
+set.seed(99)
+
+design_m <- expand.grid(
+  subject = factor(seq_len(6)),
+  level = factor(c("low", "mid", "high"), levels = c("low", "mid", "high")),
+  KEEP.OUT.ATTRS = FALSE
+)
+design_m$group <- factor(rep(c("A", "B"), each = 9))
+
+level_num <- c(low = -1, mid = 0, high = 1)[as.character(design_m$level)]
+group_num <- ifelse(design_m$group == "B", 1, 0)
+subj_idx <- as.integer(design_m$subject)
+b0 <- rnorm(6, sd = 0.5)
+
+Y_m <- cbind(
+  b0[subj_idx] + level_num + rnorm(nrow(design_m), sd = 0.15),
+  group_num + rnorm(nrow(design_m), sd = 0.15),
+  level_num * group_num + rnorm(nrow(design_m), sd = 0.15),
+  rnorm(nrow(design_m), sd = 0.15)
+)
+
+fit_m <- mixed_regress(
+  Y_m,
+  design = design_m,
+  fixed = ~ group * level,
+  random = ~ 1 | subject,
+  basis = shared_pca(3),
+  preproc = pass()
+)
+
+E_gl <- effect(fit_m, "group:level")
+pt_gl <- perm_test(E_gl, nperm = 19, alpha = 0.10)
+
+print(E_gl)
+pt_gl$component_results
+
 ## ----project_vars_example-----------------------------------------------------
 # Using the 'fit' object from the PCA example above
 

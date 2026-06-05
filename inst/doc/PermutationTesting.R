@@ -24,6 +24,42 @@ pt_pca <- perm_test(mod_pca,
 ## ----inspect_results----------------------------------------------------------
 print(pt_pca$component_results)
 
+## ----mixed_effect_perm_example------------------------------------------------
+set.seed(11)
+
+design <- expand.grid(
+  subject = factor(seq_len(8)),
+  level = factor(c("low", "mid", "high"), levels = c("low", "mid", "high")),
+  KEEP.OUT.ATTRS = FALSE
+)
+design$group <- factor(rep(c("A", "B"), each = 12))
+
+level_num <- c(low = -1, mid = 0, high = 1)[as.character(design$level)]
+group_num <- ifelse(design$group == "B", 1, 0)
+subj_idx <- as.integer(design$subject)
+b0 <- rnorm(8, sd = 0.5)
+
+Y <- cbind(
+  b0[subj_idx] + level_num + rnorm(nrow(design), sd = 0.15),
+  group_num + rnorm(nrow(design), sd = 0.15),
+  level_num * group_num + rnorm(nrow(design), sd = 0.15),
+  rnorm(nrow(design), sd = 0.15)
+)
+
+fit_mixed <- mixed_regress(
+  Y,
+  design = design,
+  fixed = ~ group * level,
+  random = ~ 1 | subject,
+  basis = shared_pca(3),
+  preproc = pass()
+)
+
+E_int <- effect(fit_mixed, "group:level")
+pt_int <- perm_test(E_int, nperm = 49, alpha = 0.10)
+
+pt_int$component_results
+
 ## ----custom_measure-----------------------------------------------------------
 my_pca_stat <- function(model_perm, comp_idx, ...) {
   # Only compute the joint statistic when testing component 2

@@ -410,15 +410,15 @@ ready predictor object.</p>
 <span id="cb1-30"><a href="#cb1-30" tabindex="-1"></a><span class="co">#&gt;   Output dimension: 2</span></span>
 <span id="cb1-31"><a href="#cb1-31" tabindex="-1"></a><span class="co">#&gt;   With pre-processing:</span></span>
 <span id="cb1-32"><a href="#cb1-32" tabindex="-1"></a><span class="co">#&gt; A finalized pre-processing pipeline:</span></span>
-<span id="cb1-33"><a href="#cb1-33" tabindex="-1"></a><span class="co">#&gt;  Step  1 : center</span></span>
+<span id="cb1-33"><a href="#cb1-33" tabindex="-1"></a><span class="co">#&gt;  Step 1: center</span></span>
 <span id="cb1-34"><a href="#cb1-34" tabindex="-1"></a><span class="co">#&gt; Label counts: </span></span>
 <span id="cb1-35"><a href="#cb1-35" tabindex="-1"></a><span class="co">#&gt;     setosa versicolor  virginica </span></span>
 <span id="cb1-36"><a href="#cb1-36" tabindex="-1"></a><span class="co">#&gt;         50         50         50</span></span></code></pre></div>
 <div id="visualise-the-latent-space" class="section level2">
 <h2>2.1 Visualise the latent space</h2>
 <div class="sourceCode" id="cb2"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb2-1"><a href="#cb2-1" tabindex="-1"></a>scores_df <span class="ot">&lt;-</span> <span class="fu">as_tibble</span>(<span class="fu">scores</span>(disc_proj)[, <span class="dv">1</span><span class="sc">:</span><span class="dv">2</span>],</span>
-<span id="cb2-2"><a href="#cb2-2" tabindex="-1"></a>                       <span class="at">.name_repair =</span> <span class="sc">~</span> <span class="fu">c</span>(<span class="st">&quot;LD1&quot;</span>,<span class="st">&quot;LD2&quot;</span>)) <span class="sc">|&gt;</span></span>
-<span id="cb2-3"><a href="#cb2-3" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="at">Species =</span> iris<span class="sc">$</span>Species)</span>
+<span id="cb2-2"><a href="#cb2-2" tabindex="-1"></a>                       <span class="at">.name_repair =</span> <span class="sc">~</span> <span class="fu">c</span>(<span class="st">&quot;LD1&quot;</span>,<span class="st">&quot;LD2&quot;</span>))</span>
+<span id="cb2-3"><a href="#cb2-3" tabindex="-1"></a>scores_df <span class="ot">&lt;-</span> <span class="fu">mutate</span>(scores_df, <span class="at">Species =</span> iris<span class="sc">$</span>Species)</span>
 <span id="cb2-4"><a href="#cb2-4" tabindex="-1"></a></span>
 <span id="cb2-5"><a href="#cb2-5" tabindex="-1"></a><span class="fu">ggplot</span>(scores_df, <span class="fu">aes</span>(LD1, LD2, <span class="at">colour =</span> Species)) <span class="sc">+</span></span>
 <span id="cb2-6"><a href="#cb2-6" tabindex="-1"></a>  <span class="fu">geom_point</span>(<span class="at">size =</span> <span class="dv">2</span>, <span class="at">alpha =</span> .<span class="dv">7</span>) <span class="sc">+</span></span>
@@ -451,7 +451,7 @@ ready predictor object.</p>
 <span id="cb3-20"><a href="#cb3-20" tabindex="-1"></a><span class="co">#&gt;        Output dimension: 2</span></span>
 <span id="cb3-21"><a href="#cb3-21" tabindex="-1"></a><span class="co">#&gt;        With pre-processing:</span></span>
 <span id="cb3-22"><a href="#cb3-22" tabindex="-1"></a><span class="co">#&gt;      A finalized pre-processing pipeline:</span></span>
-<span id="cb3-23"><a href="#cb3-23" tabindex="-1"></a><span class="co">#&gt;       Step  1 : center</span></span>
+<span id="cb3-23"><a href="#cb3-23" tabindex="-1"></a><span class="co">#&gt;       Step 1: center</span></span>
 <span id="cb3-24"><a href="#cb3-24" tabindex="-1"></a><span class="co">#&gt;      Label counts: </span></span>
 <span id="cb3-25"><a href="#cb3-25" tabindex="-1"></a><span class="co">#&gt;          setosa versicolor  virginica </span></span>
 <span id="cb3-26"><a href="#cb3-26" tabindex="-1"></a><span class="co">#&gt;              50         50         50</span></span></code></pre></div>
@@ -555,7 +555,7 @@ ready predictor object.</p>
 <span id="cb7-14"><a href="#cb7-14" tabindex="-1"></a>} <span class="cf">else</span> {</span>
 <span id="cb7-15"><a href="#cb7-15" tabindex="-1"></a>  <span class="fu">cat</span>(<span class="st">&quot;randomForest package not installed. Skipping RF example.</span><span class="sc">\n</span><span class="st">&quot;</span>)</span>
 <span id="cb7-16"><a href="#cb7-16" tabindex="-1"></a>}</span>
-<span id="cb7-17"><a href="#cb7-17" tabindex="-1"></a><span class="co">#&gt; randomForest package not installed. Skipping RF example.</span></span></code></pre></div>
+<span id="cb7-17"><a href="#cb7-17" tabindex="-1"></a><span class="co">#&gt; [1] &quot;RF Accuracy: 0.977777777777778&quot;</span></span></code></pre></div>
 <p>The RF sees exactly three input variables (the LDA components) – that
 keeps trees shallow and speeds-up training.</p>
 </div>
@@ -606,8 +606,8 @@ simple “leave-block-out” score drop.</p>
 <span id="cb9-15"><a href="#cb9-15" tabindex="-1"></a>)</span>
 <span id="cb9-16"><a href="#cb9-16" tabindex="-1"></a><span class="fu">print</span>(fi)</span>
 <span id="cb9-17"><a href="#cb9-17" tabindex="-1"></a><span class="co">#&gt;   block importance</span></span>
-<span id="cb9-18"><a href="#cb9-18" tabindex="-1"></a><span class="co">#&gt; 2   3,4  0.3611111</span></span>
-<span id="cb9-19"><a href="#cb9-19" tabindex="-1"></a><span class="co">#&gt; 1   1,2  0.1333333</span></span></code></pre></div>
+<span id="cb9-18"><a href="#cb9-18" tabindex="-1"></a><span class="co">#&gt; 2   3,4 0.25555556</span></span>
+<span id="cb9-19"><a href="#cb9-19" tabindex="-1"></a><span class="co">#&gt; 1   1,2 0.06111111</span></span></code></pre></div>
 </div>
 
 

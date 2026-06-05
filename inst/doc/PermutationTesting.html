@@ -458,6 +458,61 @@ prediction (X → Y).</p>
 common structure. Each block is shuffled independently.</p>
 <p><strong>Statistic:</strong> Consensus measures (leading eigenvalue or
 mean absolute correlation between block scores).</p>
+</div>
+<div id="effect-operators-from-mixed_regress" class="section level2">
+<h2>Effect operators from <code>mixed_regress()</code></h2>
+<p>For mixed or repeated-measures multivariate regression, the null
+hypothesis is attached to a named fixed-effect term rather than a whole
+model. The shuffle scheme depends on the term:</p>
+<ul>
+<li>between-subject terms use whole-subject block permutation,</li>
+<li>within-subject terms use within-subject row shuffles,</li>
+<li>mixed terms use grouped reduced-model residual resampling.</li>
+</ul>
+<p><strong>Statistics:</strong></p>
+<ul>
+<li>omnibus trace statistic: <code>tr(T_H)</code>,</li>
+<li>sequential rank statistic: relative leading singular-value energy
+after projected-residual rank correction.</li>
+</ul>
+<p>The workflow is:</p>
+<div class="sourceCode" id="cb4"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb4-1"><a href="#cb4-1" tabindex="-1"></a><span class="fu">set.seed</span>(<span class="dv">11</span>)</span>
+<span id="cb4-2"><a href="#cb4-2" tabindex="-1"></a></span>
+<span id="cb4-3"><a href="#cb4-3" tabindex="-1"></a>design <span class="ot">&lt;-</span> <span class="fu">expand.grid</span>(</span>
+<span id="cb4-4"><a href="#cb4-4" tabindex="-1"></a>  <span class="at">subject =</span> <span class="fu">factor</span>(<span class="fu">seq_len</span>(<span class="dv">8</span>)),</span>
+<span id="cb4-5"><a href="#cb4-5" tabindex="-1"></a>  <span class="at">level =</span> <span class="fu">factor</span>(<span class="fu">c</span>(<span class="st">&quot;low&quot;</span>, <span class="st">&quot;mid&quot;</span>, <span class="st">&quot;high&quot;</span>), <span class="at">levels =</span> <span class="fu">c</span>(<span class="st">&quot;low&quot;</span>, <span class="st">&quot;mid&quot;</span>, <span class="st">&quot;high&quot;</span>)),</span>
+<span id="cb4-6"><a href="#cb4-6" tabindex="-1"></a>  <span class="at">KEEP.OUT.ATTRS =</span> <span class="cn">FALSE</span></span>
+<span id="cb4-7"><a href="#cb4-7" tabindex="-1"></a>)</span>
+<span id="cb4-8"><a href="#cb4-8" tabindex="-1"></a>design<span class="sc">$</span>group <span class="ot">&lt;-</span> <span class="fu">factor</span>(<span class="fu">rep</span>(<span class="fu">c</span>(<span class="st">&quot;A&quot;</span>, <span class="st">&quot;B&quot;</span>), <span class="at">each =</span> <span class="dv">12</span>))</span>
+<span id="cb4-9"><a href="#cb4-9" tabindex="-1"></a></span>
+<span id="cb4-10"><a href="#cb4-10" tabindex="-1"></a>level_num <span class="ot">&lt;-</span> <span class="fu">c</span>(<span class="at">low =</span> <span class="sc">-</span><span class="dv">1</span>, <span class="at">mid =</span> <span class="dv">0</span>, <span class="at">high =</span> <span class="dv">1</span>)[<span class="fu">as.character</span>(design<span class="sc">$</span>level)]</span>
+<span id="cb4-11"><a href="#cb4-11" tabindex="-1"></a>group_num <span class="ot">&lt;-</span> <span class="fu">ifelse</span>(design<span class="sc">$</span>group <span class="sc">==</span> <span class="st">&quot;B&quot;</span>, <span class="dv">1</span>, <span class="dv">0</span>)</span>
+<span id="cb4-12"><a href="#cb4-12" tabindex="-1"></a>subj_idx <span class="ot">&lt;-</span> <span class="fu">as.integer</span>(design<span class="sc">$</span>subject)</span>
+<span id="cb4-13"><a href="#cb4-13" tabindex="-1"></a>b0 <span class="ot">&lt;-</span> <span class="fu">rnorm</span>(<span class="dv">8</span>, <span class="at">sd =</span> <span class="fl">0.5</span>)</span>
+<span id="cb4-14"><a href="#cb4-14" tabindex="-1"></a></span>
+<span id="cb4-15"><a href="#cb4-15" tabindex="-1"></a>Y <span class="ot">&lt;-</span> <span class="fu">cbind</span>(</span>
+<span id="cb4-16"><a href="#cb4-16" tabindex="-1"></a>  b0[subj_idx] <span class="sc">+</span> level_num <span class="sc">+</span> <span class="fu">rnorm</span>(<span class="fu">nrow</span>(design), <span class="at">sd =</span> <span class="fl">0.15</span>),</span>
+<span id="cb4-17"><a href="#cb4-17" tabindex="-1"></a>  group_num <span class="sc">+</span> <span class="fu">rnorm</span>(<span class="fu">nrow</span>(design), <span class="at">sd =</span> <span class="fl">0.15</span>),</span>
+<span id="cb4-18"><a href="#cb4-18" tabindex="-1"></a>  level_num <span class="sc">*</span> group_num <span class="sc">+</span> <span class="fu">rnorm</span>(<span class="fu">nrow</span>(design), <span class="at">sd =</span> <span class="fl">0.15</span>),</span>
+<span id="cb4-19"><a href="#cb4-19" tabindex="-1"></a>  <span class="fu">rnorm</span>(<span class="fu">nrow</span>(design), <span class="at">sd =</span> <span class="fl">0.15</span>)</span>
+<span id="cb4-20"><a href="#cb4-20" tabindex="-1"></a>)</span>
+<span id="cb4-21"><a href="#cb4-21" tabindex="-1"></a></span>
+<span id="cb4-22"><a href="#cb4-22" tabindex="-1"></a>fit_mixed <span class="ot">&lt;-</span> <span class="fu">mixed_regress</span>(</span>
+<span id="cb4-23"><a href="#cb4-23" tabindex="-1"></a>  Y,</span>
+<span id="cb4-24"><a href="#cb4-24" tabindex="-1"></a>  <span class="at">design =</span> design,</span>
+<span id="cb4-25"><a href="#cb4-25" tabindex="-1"></a>  <span class="at">fixed =</span> <span class="sc">~</span> group <span class="sc">*</span> level,</span>
+<span id="cb4-26"><a href="#cb4-26" tabindex="-1"></a>  <span class="at">random =</span> <span class="sc">~</span> <span class="dv">1</span> <span class="sc">|</span> subject,</span>
+<span id="cb4-27"><a href="#cb4-27" tabindex="-1"></a>  <span class="at">basis =</span> <span class="fu">shared_pca</span>(<span class="dv">3</span>),</span>
+<span id="cb4-28"><a href="#cb4-28" tabindex="-1"></a>  <span class="at">preproc =</span> <span class="fu">pass</span>()</span>
+<span id="cb4-29"><a href="#cb4-29" tabindex="-1"></a>)</span>
+<span id="cb4-30"><a href="#cb4-30" tabindex="-1"></a></span>
+<span id="cb4-31"><a href="#cb4-31" tabindex="-1"></a>E_int <span class="ot">&lt;-</span> <span class="fu">effect</span>(fit_mixed, <span class="st">&quot;group:level&quot;</span>)</span>
+<span id="cb4-32"><a href="#cb4-32" tabindex="-1"></a>pt_int <span class="ot">&lt;-</span> <span class="fu">perm_test</span>(E_int, <span class="at">nperm =</span> <span class="dv">49</span>, <span class="at">alpha =</span> <span class="fl">0.10</span>)</span>
+<span id="cb4-33"><a href="#cb4-33" tabindex="-1"></a></span>
+<span id="cb4-34"><a href="#cb4-34" tabindex="-1"></a>pt_int<span class="sc">$</span>component_results</span>
+<span id="cb4-35"><a href="#cb4-35" tabindex="-1"></a><span class="co">#&gt; # A tibble: 0 × 7</span></span>
+<span id="cb4-36"><a href="#cb4-36" tabindex="-1"></a><span class="co">#&gt; # ℹ 7 variables: comp &lt;int&gt;, statistic &lt;chr&gt;, effective_rank &lt;int&gt;,</span></span>
+<span id="cb4-37"><a href="#cb4-37" tabindex="-1"></a><span class="co">#&gt; #   lead_sv2 &lt;dbl&gt;, rel &lt;dbl&gt;, observed &lt;dbl&gt;, pval &lt;dbl&gt;</span></span></code></pre></div>
 <hr />
 </div>
 </div>
@@ -484,31 +539,31 @@ model on permuted data. Used by <code>cross_projector</code> and
 <p>Suppose you want to test whether the <em>first two</em> PCs jointly
 explain more variance than chance. You can supply a custom
 <code>measure_fun</code>:</p>
-<div class="sourceCode" id="cb4"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb4-1"><a href="#cb4-1" tabindex="-1"></a>my_pca_stat <span class="ot">&lt;-</span> <span class="cf">function</span>(model_perm, comp_idx, ...) {</span>
-<span id="cb4-2"><a href="#cb4-2" tabindex="-1"></a>  <span class="co"># Only compute the joint statistic when testing component 2</span></span>
-<span id="cb4-3"><a href="#cb4-3" tabindex="-1"></a></span>
-<span id="cb4-4"><a href="#cb4-4" tabindex="-1"></a>  <span class="cf">if</span> (comp_idx <span class="sc">==</span> <span class="dv">2</span> <span class="sc">&amp;&amp;</span> <span class="fu">length</span>(model_perm<span class="sc">$</span>sdev) <span class="sc">&gt;=</span> <span class="dv">2</span>) {</span>
-<span id="cb4-5"><a href="#cb4-5" tabindex="-1"></a>    <span class="fu">sum</span>(model_perm<span class="sc">$</span>sdev[<span class="dv">1</span><span class="sc">:</span><span class="dv">2</span>]<span class="sc">^</span><span class="dv">2</span>) <span class="sc">/</span> <span class="fu">sum</span>(model_perm<span class="sc">$</span>sdev<span class="sc">^</span><span class="dv">2</span>)</span>
-<span id="cb4-6"><a href="#cb4-6" tabindex="-1"></a>  } <span class="cf">else</span> <span class="cf">if</span> (comp_idx <span class="sc">==</span> <span class="dv">1</span>) {</span>
-<span id="cb4-7"><a href="#cb4-7" tabindex="-1"></a>    model_perm<span class="sc">$</span>sdev[<span class="dv">1</span>]<span class="sc">^</span><span class="dv">2</span> <span class="sc">/</span> <span class="fu">sum</span>(model_perm<span class="sc">$</span>sdev<span class="sc">^</span><span class="dv">2</span>)</span>
-<span id="cb4-8"><a href="#cb4-8" tabindex="-1"></a>  } <span class="cf">else</span> {</span>
-<span id="cb4-9"><a href="#cb4-9" tabindex="-1"></a>    <span class="cn">NA_real_</span></span>
-<span id="cb4-10"><a href="#cb4-10" tabindex="-1"></a>  }</span>
-<span id="cb4-11"><a href="#cb4-11" tabindex="-1"></a>}</span>
-<span id="cb4-12"><a href="#cb4-12" tabindex="-1"></a></span>
-<span id="cb4-13"><a href="#cb4-13" tabindex="-1"></a><span class="co"># Illustrative call (using default measure here for simplicity)</span></span>
-<span id="cb4-14"><a href="#cb4-14" tabindex="-1"></a>pt_pca_custom <span class="ot">&lt;-</span> <span class="fu">perm_test</span>(mod_pca, <span class="at">X =</span> X_iris, <span class="at">nperm =</span> <span class="dv">50</span>, <span class="at">comps =</span> <span class="dv">2</span>,</span>
-<span id="cb4-15"><a href="#cb4-15" tabindex="-1"></a>                           <span class="at">parallel =</span> <span class="cn">FALSE</span>)</span>
-<span id="cb4-16"><a href="#cb4-16" tabindex="-1"></a><span class="co">#&gt; Pre-calculating reconstructions for stepwise testing...</span></span>
-<span id="cb4-17"><a href="#cb4-17" tabindex="-1"></a><span class="co">#&gt; Running 50 permutations sequentially for up to 2 PCA components (alpha=0.050, serial)...</span></span>
-<span id="cb4-18"><a href="#cb4-18" tabindex="-1"></a><span class="co">#&gt;   Testing Component 1/2...</span></span>
-<span id="cb4-19"><a href="#cb4-19" tabindex="-1"></a><span class="co">#&gt;   Testing Component 2/2...</span></span>
-<span id="cb4-20"><a href="#cb4-20" tabindex="-1"></a><span class="fu">print</span>(pt_pca_custom<span class="sc">$</span>component_results)</span>
-<span id="cb4-21"><a href="#cb4-21" tabindex="-1"></a><span class="co">#&gt; # A tibble: 2 × 5</span></span>
-<span id="cb4-22"><a href="#cb4-22" tabindex="-1"></a><span class="co">#&gt;    comp observed   pval lower_ci upper_ci</span></span>
-<span id="cb4-23"><a href="#cb4-23" tabindex="-1"></a><span class="co">#&gt;   &lt;int&gt;    &lt;dbl&gt;  &lt;dbl&gt;    &lt;dbl&gt;    &lt;dbl&gt;</span></span>
-<span id="cb4-24"><a href="#cb4-24" tabindex="-1"></a><span class="co">#&gt; 1     1    0.925 0.0196    0.682    0.692</span></span>
-<span id="cb4-25"><a href="#cb4-25" tabindex="-1"></a><span class="co">#&gt; 2     2    0.704 0.0196    0.619    0.690</span></span></code></pre></div>
+<div class="sourceCode" id="cb5"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb5-1"><a href="#cb5-1" tabindex="-1"></a>my_pca_stat <span class="ot">&lt;-</span> <span class="cf">function</span>(model_perm, comp_idx, ...) {</span>
+<span id="cb5-2"><a href="#cb5-2" tabindex="-1"></a>  <span class="co"># Only compute the joint statistic when testing component 2</span></span>
+<span id="cb5-3"><a href="#cb5-3" tabindex="-1"></a></span>
+<span id="cb5-4"><a href="#cb5-4" tabindex="-1"></a>  <span class="cf">if</span> (comp_idx <span class="sc">==</span> <span class="dv">2</span> <span class="sc">&amp;&amp;</span> <span class="fu">length</span>(model_perm<span class="sc">$</span>sdev) <span class="sc">&gt;=</span> <span class="dv">2</span>) {</span>
+<span id="cb5-5"><a href="#cb5-5" tabindex="-1"></a>    <span class="fu">sum</span>(model_perm<span class="sc">$</span>sdev[<span class="dv">1</span><span class="sc">:</span><span class="dv">2</span>]<span class="sc">^</span><span class="dv">2</span>) <span class="sc">/</span> <span class="fu">sum</span>(model_perm<span class="sc">$</span>sdev<span class="sc">^</span><span class="dv">2</span>)</span>
+<span id="cb5-6"><a href="#cb5-6" tabindex="-1"></a>  } <span class="cf">else</span> <span class="cf">if</span> (comp_idx <span class="sc">==</span> <span class="dv">1</span>) {</span>
+<span id="cb5-7"><a href="#cb5-7" tabindex="-1"></a>    model_perm<span class="sc">$</span>sdev[<span class="dv">1</span>]<span class="sc">^</span><span class="dv">2</span> <span class="sc">/</span> <span class="fu">sum</span>(model_perm<span class="sc">$</span>sdev<span class="sc">^</span><span class="dv">2</span>)</span>
+<span id="cb5-8"><a href="#cb5-8" tabindex="-1"></a>  } <span class="cf">else</span> {</span>
+<span id="cb5-9"><a href="#cb5-9" tabindex="-1"></a>    <span class="cn">NA_real_</span></span>
+<span id="cb5-10"><a href="#cb5-10" tabindex="-1"></a>  }</span>
+<span id="cb5-11"><a href="#cb5-11" tabindex="-1"></a>}</span>
+<span id="cb5-12"><a href="#cb5-12" tabindex="-1"></a></span>
+<span id="cb5-13"><a href="#cb5-13" tabindex="-1"></a><span class="co"># Illustrative call (using default measure here for simplicity)</span></span>
+<span id="cb5-14"><a href="#cb5-14" tabindex="-1"></a>pt_pca_custom <span class="ot">&lt;-</span> <span class="fu">perm_test</span>(mod_pca, <span class="at">X =</span> X_iris, <span class="at">nperm =</span> <span class="dv">50</span>, <span class="at">comps =</span> <span class="dv">2</span>,</span>
+<span id="cb5-15"><a href="#cb5-15" tabindex="-1"></a>                           <span class="at">parallel =</span> <span class="cn">FALSE</span>)</span>
+<span id="cb5-16"><a href="#cb5-16" tabindex="-1"></a><span class="co">#&gt; Pre-calculating reconstructions for stepwise testing...</span></span>
+<span id="cb5-17"><a href="#cb5-17" tabindex="-1"></a><span class="co">#&gt; Running 50 permutations sequentially for up to 2 PCA components (alpha=0.050, serial)...</span></span>
+<span id="cb5-18"><a href="#cb5-18" tabindex="-1"></a><span class="co">#&gt;   Testing Component 1/2...</span></span>
+<span id="cb5-19"><a href="#cb5-19" tabindex="-1"></a><span class="co">#&gt;   Testing Component 2/2...</span></span>
+<span id="cb5-20"><a href="#cb5-20" tabindex="-1"></a><span class="fu">print</span>(pt_pca_custom<span class="sc">$</span>component_results)</span>
+<span id="cb5-21"><a href="#cb5-21" tabindex="-1"></a><span class="co">#&gt; # A tibble: 2 × 5</span></span>
+<span id="cb5-22"><a href="#cb5-22" tabindex="-1"></a><span class="co">#&gt;    comp observed   pval lower_ci upper_ci</span></span>
+<span id="cb5-23"><a href="#cb5-23" tabindex="-1"></a><span class="co">#&gt;   &lt;int&gt;    &lt;dbl&gt;  &lt;dbl&gt;    &lt;dbl&gt;    &lt;dbl&gt;</span></span>
+<span id="cb5-24"><a href="#cb5-24" tabindex="-1"></a><span class="co">#&gt; 1     1    0.925 0.0196    0.682    0.692</span></span>
+<span id="cb5-25"><a href="#cb5-25" tabindex="-1"></a><span class="co">#&gt; 2     2    0.704 0.0392    0.607    0.697</span></span></code></pre></div>
 <p>For testing a single combined statistic rather than sequential
 components, set <code>comps = 1</code> and have your
 <code>measure_fun</code> compute the combined value directly.</p>
@@ -521,15 +576,15 @@ components, set <code>comps = 1</code> and have your
 independent. The <code>perm_test()</code> methods use the
 <code>future</code> framework, so you control parallelism through your
 plan:</p>
-<div class="sourceCode" id="cb5"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb5-1"><a href="#cb5-1" tabindex="-1"></a><span class="fu">library</span>(future)</span>
-<span id="cb5-2"><a href="#cb5-2" tabindex="-1"></a><span class="fu">plan</span>(multisession, <span class="at">workers =</span> <span class="dv">4</span>)</span>
-<span id="cb5-3"><a href="#cb5-3" tabindex="-1"></a></span>
-<span id="cb5-4"><a href="#cb5-4" tabindex="-1"></a>pt_pca_parallel <span class="ot">&lt;-</span> <span class="fu">perm_test</span>(mod_pca, <span class="at">X =</span> X_iris,</span>
-<span id="cb5-5"><a href="#cb5-5" tabindex="-1"></a>                             <span class="at">nperm =</span> <span class="dv">999</span>,</span>
-<span id="cb5-6"><a href="#cb5-6" tabindex="-1"></a>                             <span class="at">comps =</span> <span class="dv">3</span>,</span>
-<span id="cb5-7"><a href="#cb5-7" tabindex="-1"></a>                             <span class="at">parallel =</span> <span class="cn">TRUE</span>)</span>
-<span id="cb5-8"><a href="#cb5-8" tabindex="-1"></a></span>
-<span id="cb5-9"><a href="#cb5-9" tabindex="-1"></a><span class="fu">plan</span>(sequential)</span></code></pre></div>
+<div class="sourceCode" id="cb6"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb6-1"><a href="#cb6-1" tabindex="-1"></a><span class="fu">library</span>(future)</span>
+<span id="cb6-2"><a href="#cb6-2" tabindex="-1"></a><span class="fu">plan</span>(multisession, <span class="at">workers =</span> <span class="dv">4</span>)</span>
+<span id="cb6-3"><a href="#cb6-3" tabindex="-1"></a></span>
+<span id="cb6-4"><a href="#cb6-4" tabindex="-1"></a>pt_pca_parallel <span class="ot">&lt;-</span> <span class="fu">perm_test</span>(mod_pca, <span class="at">X =</span> X_iris,</span>
+<span id="cb6-5"><a href="#cb6-5" tabindex="-1"></a>                             <span class="at">nperm =</span> <span class="dv">999</span>,</span>
+<span id="cb6-6"><a href="#cb6-6" tabindex="-1"></a>                             <span class="at">comps =</span> <span class="dv">3</span>,</span>
+<span id="cb6-7"><a href="#cb6-7" tabindex="-1"></a>                             <span class="at">parallel =</span> <span class="cn">TRUE</span>)</span>
+<span id="cb6-8"><a href="#cb6-8" tabindex="-1"></a></span>
+<span id="cb6-9"><a href="#cb6-9" tabindex="-1"></a><span class="fu">plan</span>(sequential)</span></code></pre></div>
 <p>With 4 workers and 999 permutations, each worker handles ~250
 permutations concurrently.</p>
 <hr />

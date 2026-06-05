@@ -460,13 +460,13 @@ prediction time? We can still project into the latent space:</p>
 <span id="cb4-4"><a href="#cb4-4" tabindex="-1"></a>                                  <span class="at">colind =</span> <span class="dv">1</span>,</span>
 <span id="cb4-5"><a href="#cb4-5" tabindex="-1"></a>                                  <span class="at">source =</span> <span class="st">&quot;X&quot;</span>)</span>
 <span id="cb4-6"><a href="#cb4-6" tabindex="-1"></a><span class="fu">head</span>(<span class="fu">round</span>(scores_partial, <span class="dv">3</span>))</span>
-<span id="cb4-7"><a href="#cb4-7" tabindex="-1"></a><span class="co">#&gt;        [,1]   [,2]</span></span>
-<span id="cb4-8"><a href="#cb4-8" tabindex="-1"></a><span class="co">#&gt; [1,]  9.564 -5.187</span></span>
-<span id="cb4-9"><a href="#cb4-9" tabindex="-1"></a><span class="co">#&gt; [2,] 12.137 -6.582</span></span>
-<span id="cb4-10"><a href="#cb4-10" tabindex="-1"></a><span class="co">#&gt; [3,] 14.710 -7.978</span></span>
-<span id="cb4-11"><a href="#cb4-11" tabindex="-1"></a><span class="co">#&gt; [4,] 15.997 -8.676</span></span>
-<span id="cb4-12"><a href="#cb4-12" tabindex="-1"></a><span class="co">#&gt; [5,] 10.851 -5.885</span></span>
-<span id="cb4-13"><a href="#cb4-13" tabindex="-1"></a><span class="co">#&gt; [6,]  5.704 -3.093</span></span></code></pre></div>
+<span id="cb4-7"><a href="#cb4-7" tabindex="-1"></a><span class="co">#&gt;       [,1]   [,2]</span></span>
+<span id="cb4-8"><a href="#cb4-8" tabindex="-1"></a><span class="co">#&gt; [1,] 0.065 -0.035</span></span>
+<span id="cb4-9"><a href="#cb4-9" tabindex="-1"></a><span class="co">#&gt; [2,] 0.083 -0.045</span></span>
+<span id="cb4-10"><a href="#cb4-10" tabindex="-1"></a><span class="co">#&gt; [3,] 0.100 -0.054</span></span>
+<span id="cb4-11"><a href="#cb4-11" tabindex="-1"></a><span class="co">#&gt; [4,] 0.109 -0.059</span></span>
+<span id="cb4-12"><a href="#cb4-12" tabindex="-1"></a><span class="co">#&gt; [5,] 0.074 -0.040</span></span>
+<span id="cb4-13"><a href="#cb4-13" tabindex="-1"></a><span class="co">#&gt; [6,] 0.039 -0.021</span></span></code></pre></div>
 <p>These scores represent the best estimate of position in the latent
 space given only partial input. This is useful for missing data
 scenarios or when only some measurements are available.</p>
@@ -596,8 +596,8 @@ scaling as preprocessing, often recommended for <code>glmnet</code>.</p>
 <span id="cb8-15"><a href="#cb8-15" tabindex="-1"></a><span class="co">#&gt;   Output dimension: 1</span></span>
 <span id="cb8-16"><a href="#cb8-16" tabindex="-1"></a><span class="co">#&gt;   With pre-processing:</span></span>
 <span id="cb8-17"><a href="#cb8-17" tabindex="-1"></a><span class="co">#&gt; A finalized pre-processing pipeline:</span></span>
-<span id="cb8-18"><a href="#cb8-18" tabindex="-1"></a><span class="co">#&gt;  Step  1 : center</span></span>
-<span id="cb8-19"><a href="#cb8-19" tabindex="-1"></a><span class="co">#&gt;  Step  2 : colscale</span></span></code></pre></div>
+<span id="cb8-18"><a href="#cb8-18" tabindex="-1"></a><span class="co">#&gt;  Step 1: center</span></span>
+<span id="cb8-19"><a href="#cb8-19" tabindex="-1"></a><span class="co">#&gt;  Step 2: colscale</span></span></code></pre></div>
 </div>
 <div id="project-new-data" class="section level2">
 <h2>2.3 Project New Data</h2>
